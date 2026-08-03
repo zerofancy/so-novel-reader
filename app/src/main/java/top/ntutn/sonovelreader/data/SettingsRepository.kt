@@ -1,0 +1,47 @@
+package top.ntutn.sonovelreader.data
+
+import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+private val Context.readerDataStore by preferencesDataStore(name = "reader_settings")
+
+class SettingsRepository(private val context: Context) {
+    private object Keys {
+        val mode = stringPreferencesKey("reading_mode")
+        val fontSize = intPreferencesKey("font_size_sp")
+        val lineHeight = floatPreferencesKey("line_height")
+        val theme = stringPreferencesKey("reader_theme")
+        val keepScreenOn = booleanPreferencesKey("keep_screen_on")
+    }
+
+    val settings: Flow<ReaderSettings> = context.readerDataStore.data.map(::decode)
+
+    suspend fun setReadingMode(value: ReadingMode) = update(Keys.mode, value.name)
+    suspend fun setFontSize(value: Int) = update(Keys.fontSize, value.coerceIn(14, 32))
+    suspend fun setLineHeight(value: Float) = update(Keys.lineHeight, value.coerceIn(1.2f, 2.2f))
+    suspend fun setTheme(value: ReaderTheme) = update(Keys.theme, value.name)
+    suspend fun setKeepScreenOn(value: Boolean) = update(Keys.keepScreenOn, value)
+
+    private suspend fun <T> update(key: Preferences.Key<T>, value: T) {
+        context.readerDataStore.edit { it[key] = value }
+    }
+
+    private fun decode(preferences: Preferences): ReaderSettings = ReaderSettings(
+        readingMode = preferences[Keys.mode].toEnumOrDefault(ReadingMode.SCROLL),
+        fontSizeSp = (preferences[Keys.fontSize] ?: 20).coerceIn(14, 32),
+        lineHeight = (preferences[Keys.lineHeight] ?: 1.7f).coerceIn(1.2f, 2.2f),
+        theme = preferences[Keys.theme].toEnumOrDefault(ReaderTheme.SYSTEM),
+        keepScreenOn = preferences[Keys.keepScreenOn] ?: false,
+    )
+}
+
+private inline fun <reified T : Enum<T>> String?.toEnumOrDefault(default: T): T =
+    enumValues<T>().firstOrNull { it.name == this } ?: default
