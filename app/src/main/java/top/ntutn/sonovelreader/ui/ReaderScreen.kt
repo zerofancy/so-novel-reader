@@ -66,6 +66,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import java.io.File
 import org.json.JSONObject
@@ -94,6 +96,21 @@ fun ReaderScreen(
         val old = view.keepScreenOn
         view.keepScreenOn = state.settings.keepScreenOn
         onDispose { view.keepScreenOn = old }
+    }
+    DisposableEffect(controlsVisible, view) {
+        val window = (view.context as android.app.Activity).window
+        val controller = WindowInsetsControllerCompat(window, view)
+        if (!controlsVisible) {
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            controller.show(WindowInsetsCompat.Type.statusBars())
+        }
+        onDispose {
+            // 离开阅读界面时恢复状态栏
+            controller.show(WindowInsetsCompat.Type.statusBars())
+        }
     }
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
