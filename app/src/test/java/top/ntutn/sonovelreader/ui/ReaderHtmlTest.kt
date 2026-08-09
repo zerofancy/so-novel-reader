@@ -34,7 +34,22 @@ class ReaderHtmlTest {
         file.delete()
     }
 
-    private fun temporaryChapter(): File = File.createTempFile("reader", ".xhtml").apply {
-        writeText("<html><head><title>Test</title></head><body><p>Hello</p></body></html>")
+    @Test
+    fun darkTheme_overridesBookDefinedHeadingColor() {
+        val file = temporaryChapter("<h1 style=\"color: black\">Chapter title</h1>")
+        val html = buildReaderHtml(
+            file,
+            ReaderSettings(theme = ReaderTheme.DARK),
+            darkSystem = false,
+        )
+
+        assertTrue(html.contains("h1, h2, h3, h4, h5, h6"))
+        assertTrue(html.contains("color: #E7E2D8 !important"))
+        file.delete()
     }
+
+    private fun temporaryChapter(body: String = "<p>Hello</p>"): File =
+        File.createTempFile("reader", ".xhtml").apply {
+            writeText("<html><head><title>Test</title></head><body>$body</body></html>")
+        }
 }

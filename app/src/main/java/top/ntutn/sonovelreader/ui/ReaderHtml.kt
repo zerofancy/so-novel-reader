@@ -43,7 +43,11 @@ internal fun buildReaderHtml(file: File, settings: ReaderSettings, darkSystem: B
             :root { color-scheme: ${if (colors.background == "#171717") "dark" else "light"}; background: ${colors.background}; }
             html, body { background: ${colors.background} !important; color: ${colors.foreground} !important; }
             body, body * { font-size: ${settings.fontSizeSp}px; line-height: ${settings.lineHeight} !important; }
-            h1, h2, h3, h4, h5, h6 { line-height: 1.35 !important; break-after: avoid; }
+            h1, h2, h3, h4, h5, h6 {
+                color: ${colors.foreground} !important;
+                line-height: 1.35 !important;
+                break-after: avoid;
+            }
             img, svg, video { max-width: 100% !important; height: auto !important; break-inside: avoid; }
             pre, table { max-width: 100%; overflow-x: auto; }
             a { color: inherit; }
