@@ -164,15 +164,8 @@ fun SoNovelReaderApp(
                 ReaderScreen(
                     viewModel = readerViewModel,
                     onBack = navController::popBackStack,
-                    booksRoot = containerBooksRoot(container),
                 )
             }
         }
     }
-}
-
-@Composable
-private fun containerBooksRoot(container: AppContainer): String {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    return remember(container, context) { context.filesDir.resolve("books").absolutePath }
 }

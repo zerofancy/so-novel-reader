@@ -73,6 +73,15 @@ class BookRepository(
         ParsedBook(entity, chapters, flattenToc(parsed))
     }
 
+    suspend fun readChapter(book: ParsedBook, chapter: ReaderChapter): ReaderContent = withContext(ioDispatcher) {
+        val contentRoot = File(book.book.contentDirectory).canonicalFile
+        val chapterFile = File(chapter.absolutePath).canonicalFile
+        if (!chapterFile.toPath().startsWith(contentRoot.toPath()) || !chapterFile.isFile) {
+            throw IOException("章节文件不存在或路径不安全")
+        }
+        parseReaderContent(chapterFile, contentRoot)
+    }
+
     private suspend fun importOne(uri: Uri): ImportItemResult {
         val name = runCatching { displayName(uri) }
             .getOrElse { uri.lastPathSegment?.substringAfterLast('/') ?: "未知文件.epub" }

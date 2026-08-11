@@ -1,34 +1,38 @@
 package top.ntutn.sonovelreader.ui
 
-import android.annotation.SuppressLint
-import android.graphics.Color
-import android.net.Uri
-import android.view.MotionEvent
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -45,35 +49,52 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.webkit.WebViewAssetLoader
+import coil3.compose.SubcomposeAsyncImage
 import java.io.File
-import org.json.JSONObject
-import org.json.JSONTokener
-import top.ntutn.sonovelreader.data.ReaderChapter
+import kotlin.math.abs
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+import top.ntutn.sonovelreader.data.ReaderBlock
+import top.ntutn.sonovelreader.data.ReaderContent
+import top.ntutn.sonovelreader.data.ReaderPageItem
 import top.ntutn.sonovelreader.data.ReaderSettings
+import top.ntutn.sonovelreader.data.ReaderTheme
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.data.TocItem
 
@@ -82,7 +103,6 @@ import top.ntutn.sonovelreader.data.TocItem
 fun ReaderScreen(
     viewModel: ReaderViewModel,
     onBack: () -> Unit,
-    booksRoot: String,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
@@ -91,6 +111,7 @@ fun ReaderScreen(
     var jumpToken by remember { mutableIntStateOf(0) }
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val palette = readerPalette(state.settings.theme)
 
     DisposableEffect(state.settings.keepScreenOn, view) {
         val old = view.keepScreenOn
@@ -126,38 +147,60 @@ fun ReaderScreen(
         if (showToc) showToc = false else onBack()
     }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(Modifier.fillMaxSize().background(palette.background)) {
         when {
-            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-            state.error != null -> ReaderError(state.error.orEmpty(), viewModel::load, onBack)
-            state.parsedBook != null && state.locator != null -> {
+            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
+            state.error != null -> ReaderError(state.error.orEmpty(), viewModel::load, onBack, palette)
+            state.parsedBook != null && state.locator != null && state.content != null -> {
                 val book = state.parsedBook!!
                 val locator = state.locator!!
+                val content = state.content!!
                 val chapter = book.chapters[locator.chapterIndex.coerceIn(book.chapters.indices)]
-                ReaderWebView(
-                    bookId = book.book.id,
-                    chapter = chapter,
-                    settings = state.settings,
-                    initialFraction = locator.chapterFraction,
-                    fragment = pendingFragment,
-                    jumpToken = jumpToken,
-                    booksRoot = booksRoot,
-                    onToggleControls = { controlsVisible = !controlsVisible },
-                    onProgress = viewModel::updateFraction,
-                    onFragmentConsumed = { pendingFragment = null },
-                    onPreviousChapter = {
-                        pendingFragment = null
-                        viewModel.goToChapter(locator.chapterIndex - 1, 1f)
-                    },
-                    onNextChapter = {
-                        pendingFragment = null
-                        viewModel.goToChapter(locator.chapterIndex + 1, 0f)
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                val onPreviousChapter = {
+                    pendingFragment = null
+                    viewModel.goToChapter(locator.chapterIndex - 1, 1f)
+                }
+                val onNextChapter = {
+                    pendingFragment = null
+                    viewModel.goToChapter(locator.chapterIndex + 1, 0f)
+                }
+
+                if (state.settings.readingMode == ReadingMode.SCROLL) {
+                    VerticalReader(
+                        content = content,
+                        settings = state.settings,
+                        palette = palette,
+                        initialFraction = locator.chapterFraction,
+                        fragment = pendingFragment,
+                        jumpToken = jumpToken,
+                        hasPreviousChapter = locator.chapterIndex > 0,
+                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                        onToggleControls = { controlsVisible = !controlsVisible },
+                        onProgress = viewModel::updateFraction,
+                        onFragmentConsumed = { pendingFragment = null },
+                        onPreviousChapter = onPreviousChapter,
+                        onNextChapter = onNextChapter,
+                    )
+                } else {
+                    PagedReader(
+                        content = content,
+                        settings = state.settings,
+                        palette = palette,
+                        initialFraction = locator.chapterFraction,
+                        fragment = pendingFragment,
+                        jumpToken = jumpToken,
+                        hasPreviousChapter = locator.chapterIndex > 0,
+                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                        onToggleControls = { controlsVisible = !controlsVisible },
+                        onProgress = viewModel::updateFraction,
+                        onFragmentConsumed = { pendingFragment = null },
+                        onPreviousChapter = onPreviousChapter,
+                        onNextChapter = onNextChapter,
+                    )
+                }
 
                 AnimatedVisibility(controlsVisible, Modifier.align(Alignment.TopCenter)) {
-                    Surface(tonalElevation = 3.dp, shadowElevation = 3.dp) {
+                    Surface(color = palette.background, tonalElevation = 3.dp, shadowElevation = 3.dp) {
                         TopAppBar(
                             title = {
                                 Column {
@@ -165,7 +208,7 @@ fun ReaderScreen(
                                     Text(
                                         chapter.title,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = palette.muted,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -181,21 +224,28 @@ fun ReaderScreen(
                                     Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "目录")
                                 }
                             },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = palette.background,
+                                titleContentColor = palette.foreground,
+                                navigationIconContentColor = palette.foreground,
+                                actionIconContentColor = palette.foreground,
+                            ),
                         )
                     }
                 }
 
                 AnimatedVisibility(controlsVisible, Modifier.align(Alignment.BottomCenter)) {
-                    BottomAppBar(Modifier.navigationBarsPadding()) {
+                    BottomAppBar(
+                        modifier = Modifier.navigationBarsPadding(),
+                        containerColor = palette.background,
+                        contentColor = palette.foreground,
+                    ) {
                         IconButton(
                             onClick = { viewModel.goToChapter(locator.chapterIndex - 1, 1f) },
                             enabled = locator.chapterIndex > 0,
                         ) { Icon(Icons.Default.ChevronLeft, contentDescription = "上一章") }
                         Spacer(Modifier.weight(1f))
-                        Text(
-                            "${locator.chapterIndex + 1} / ${book.chapters.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Text("${locator.chapterIndex + 1} / ${book.chapters.size}", style = MaterialTheme.typography.labelLarge)
                         Spacer(Modifier.width(8.dp))
                         IconButton(onClick = {
                             viewModel.flushProgress()
@@ -249,7 +299,259 @@ fun ReaderScreen(
                     }
                 }
             }
+            state.contentLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
         }
+    }
+}
+
+@Composable
+internal fun VerticalReader(
+    content: ReaderContent,
+    settings: ReaderSettings,
+    palette: ReaderPalette,
+    initialFraction: Float,
+    fragment: String?,
+    jumpToken: Int,
+    hasPreviousChapter: Boolean,
+    hasNextChapter: Boolean,
+    onToggleControls: () -> Unit,
+    onProgress: (Float) -> Unit,
+    onFragmentConsumed: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val textStyle = readerTextStyle(settings, palette.foreground)
+
+    LaunchedEffect(content, jumpToken) {
+        val target = fragment?.let(content.anchors::get) ?: content.positionAt(initialFraction)
+        listState.scrollToItem((target.blockIndex + 1).coerceAtLeast(0))
+        if (fragment != null) onFragmentConsumed()
+    }
+    LaunchedEffect(content, listState) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 1..content.blocks.size }
+        }.distinctUntilChanged().collect { visible ->
+            if (visible != null) {
+                val blockIndex = visible.index - 1
+                val inside = (-visible.offset).toFloat().div(visible.size.coerceAtLeast(1)).coerceIn(0f, 1f)
+                onProgress(content.progressAt(blockIndex, inside))
+            }
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize().pointerInput(onToggleControls) {
+            detectTapGestures { position ->
+                if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
+            }
+        },
+        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item(key = "previous-chapter") {
+            ChapterNavigation("上一章", hasPreviousChapter, onPreviousChapter, palette)
+        }
+        itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { _, block ->
+            ReaderBlockView(block, textStyle, palette)
+        }
+        item(key = "next-chapter") {
+            ChapterNavigation("下一章", hasNextChapter, onNextChapter, palette)
+        }
+    }
+}
+
+@Composable
+internal fun PagedReader(
+    content: ReaderContent,
+    settings: ReaderSettings,
+    palette: ReaderPalette,
+    initialFraction: Float,
+    fragment: String?,
+    jumpToken: Int,
+    hasPreviousChapter: Boolean,
+    hasNextChapter: Boolean,
+    onToggleControls: () -> Unit,
+    onProgress: (Float) -> Unit,
+    onFragmentConsumed: () -> Unit,
+    onPreviousChapter: () -> Unit,
+    onNextChapter: () -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val textStyle = readerTextStyle(settings, palette.foreground)
+        val widthPx = with(density) { (maxWidth - 44.dp).roundToPx().coerceAtLeast(1) }
+        val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
+        val spacingPx = with(density) { 14.dp.roundToPx() }
+        val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
+        val pages = remember(content, widthPx, heightPx, spacingPx, textStyle, textMeasurer) {
+            paginateReaderContent(content, widthPx, heightPx, spacingPx) { text, availableWidth, availableHeight ->
+                val maxLines = (availableHeight / lineHeightPx).coerceAtLeast(0)
+                if (maxLines == 0) {
+                    MeasuredTextSlice(0, 0)
+                } else {
+                    val layout = textMeasurer.measure(
+                        text = AnnotatedString(text),
+                        style = textStyle,
+                        overflow = TextOverflow.Clip,
+                        softWrap = true,
+                        maxLines = maxLines,
+                        constraints = Constraints(maxWidth = availableWidth),
+                    )
+                    val count = if (layout.lineCount == 0) 0 else layout.getLineEnd(layout.lineCount - 1, visibleEnd = false)
+                    MeasuredTextSlice(count, layout.size.height)
+                }
+            }
+        }
+        val targetProgress = fragment?.let(content.anchors::get)?.let {
+            content.progressAt(it.blockIndex, it.fractionInBlock)
+        } ?: initialFraction
+        val pagerState = rememberPagerState(
+            initialPage = pages.pageForProgress(targetProgress),
+            pageCount = pages::size,
+        )
+        val scope = rememberCoroutineScope()
+        var restored by remember(content) { mutableStateOf(false) }
+
+        LaunchedEffect(pages, jumpToken) {
+            restored = false
+            pagerState.scrollToPage(pages.pageForProgress(targetProgress))
+            restored = true
+            if (fragment != null) onFragmentConsumed()
+        }
+        LaunchedEffect(pagerState, pages, restored) {
+            if (!restored) return@LaunchedEffect
+            snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { page ->
+                pages.getOrNull(page)?.let { onProgress(it.startProgress) }
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().pointerInput(pages, hasPreviousChapter, hasNextChapter) {
+                detectHorizontalReaderGestures(
+                    currentPage = { pagerState.currentPage },
+                    lastPage = pages.lastIndex,
+                    onTap = { position ->
+                        when {
+                            position.x < size.width * 0.32f -> scope.launch {
+                                if (pagerState.currentPage > 0) pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                else if (hasPreviousChapter) onPreviousChapter()
+                            }
+                            position.x > size.width * 0.68f -> scope.launch {
+                                if (pagerState.currentPage < pages.lastIndex) pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                else if (hasNextChapter) onNextChapter()
+                            }
+                            else -> onToggleControls()
+                        }
+                    },
+                    onSwipePastStart = { if (hasPreviousChapter) onPreviousChapter() },
+                    onSwipePastEnd = { if (hasNextChapter) onNextChapter() },
+                )
+            },
+        ) { pageIndex ->
+            Column(
+                Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                pages[pageIndex].items.forEach { item ->
+                    when (item) {
+                        is ReaderPageItem.Text -> Text(
+                            text = item.text,
+                            style = textStyle,
+                            color = palette.foreground,
+                            modifier = Modifier.height(with(density) { item.heightPx.toDp() }),
+                        )
+                        is ReaderPageItem.Image -> ReaderImage(
+                            image = item.block,
+                            palette = palette,
+                            height = with(density) { item.heightPx.toDp() },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun PointerInputScope.detectHorizontalReaderGestures(
+    currentPage: () -> Int,
+    lastPage: Int,
+    onTap: (Offset) -> Unit,
+    onSwipePastStart: () -> Unit,
+    onSwipePastEnd: () -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val startPosition = down.position
+        val startPage = currentPage()
+        var endPosition = startPosition
+        var pressed = true
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Final)
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            endPosition = change.position
+            pressed = change.pressed
+        } while (pressed)
+        val delta = endPosition - startPosition
+        val threshold = viewConfiguration.touchSlop * 3
+        when {
+            abs(delta.x) < viewConfiguration.touchSlop && abs(delta.y) < viewConfiguration.touchSlop -> onTap(endPosition)
+            abs(delta.x) > threshold && abs(delta.x) > abs(delta.y) && delta.x > 0 && startPage == 0 -> onSwipePastStart()
+            abs(delta.x) > threshold && abs(delta.x) > abs(delta.y) && delta.x < 0 && startPage == lastPage -> onSwipePastEnd()
+        }
+    }
+}
+
+@Composable
+private fun ReaderBlockView(block: ReaderBlock, textStyle: TextStyle, palette: ReaderPalette) {
+    when (block) {
+        is ReaderBlock.Text -> Text(block.text, style = textStyle, color = palette.foreground)
+        is ReaderBlock.Image -> ReaderImage(block, palette)
+    }
+}
+
+@Composable
+private fun ReaderImage(image: ReaderBlock.Image, palette: ReaderPalette, height: Dp? = null) {
+    val modifier = Modifier.fillMaxWidth().let { base ->
+        when {
+            height != null -> base.height(height)
+            image.aspectRatio != null -> base.heightIn(max = 720.dp).aspectRatio(image.aspectRatio.coerceIn(0.15f, 8f))
+            else -> base.heightIn(min = 120.dp, max = 480.dp)
+        }
+    }
+    if (image.absolutePath == null) {
+        ImagePlaceholder(image.contentDescription, palette, modifier)
+        return
+    }
+    SubcomposeAsyncImage(
+        model = File(image.absolutePath),
+        contentDescription = image.contentDescription,
+        contentScale = ContentScale.Fit,
+        modifier = modifier,
+        loading = { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = palette.muted) } },
+        error = { ImagePlaceholder(image.contentDescription, palette, Modifier.fillMaxSize()) },
+    )
+}
+
+@Composable
+private fun ImagePlaceholder(label: String, palette: ReaderPalette, modifier: Modifier = Modifier) {
+    Column(
+        modifier.background(palette.placeholder).padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(Icons.Default.BrokenImage, contentDescription = null, tint = palette.muted)
+        Text(label, color = palette.muted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun ChapterNavigation(label: String, enabled: Boolean, onClick: () -> Unit, palette: ReaderPalette) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        TextButton(onClick = onClick, enabled = enabled) { Text(label, color = if (enabled) palette.muted else palette.placeholder) }
     }
 }
 
@@ -268,182 +570,46 @@ private fun TocRow(item: TocItem, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ReaderError(message: String, onRetry: () -> Unit, onBack: () -> Unit) {
+private fun ReaderError(message: String, onRetry: () -> Unit, onBack: () -> Unit, palette: ReaderPalette) {
     Column(
         Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("无法打开书籍", style = MaterialTheme.typography.headlineSmall)
-        Text(message, Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row { TextButton(onClick = onBack) { Text("返回书架") }; TextButton(onClick = onRetry) { Text("重试") } }
+        Text("无法打开书籍", style = MaterialTheme.typography.headlineSmall, color = palette.foreground)
+        Text(message, Modifier.padding(vertical = 12.dp), color = palette.muted)
+        Row {
+            TextButton(onClick = onBack) { Text("返回书架") }
+            TextButton(onClick = onRetry) { Text("重试") }
+        }
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
 @Composable
-private fun ReaderWebView(
-    bookId: String,
-    chapter: ReaderChapter,
-    settings: ReaderSettings,
-    initialFraction: Float,
-    fragment: String?,
-    jumpToken: Int,
-    booksRoot: String,
-    onToggleControls: () -> Unit,
-    onProgress: (Float) -> Unit,
-    onFragmentConsumed: () -> Unit,
-    onPreviousChapter: () -> Unit,
-    onNextChapter: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val darkSystem = isSystemInDarkTheme()
-    val loadKey = "$bookId|${chapter.href}|$settings|$jumpToken|$darkSystem"
-    val assetLoader = remember(booksRoot) {
-        WebViewAssetLoader.Builder()
-            .addPathHandler("/books/", WebViewAssetLoader.InternalStoragePathHandler(context, File(booksRoot)))
-            .build()
-    }
-    var downX by remember { mutableFloatStateOf(0f) }
-    var downY by remember { mutableFloatStateOf(0f) }
+private fun readerTextStyle(settings: ReaderSettings, color: Color) = TextStyle(
+    color = color,
+    fontSize = settings.fontSizeSp.sp,
+    lineHeight = (settings.fontSizeSp * settings.lineHeight).sp,
+)
 
-    AndroidView(
-        modifier = modifier,
-        factory = {
-            WebView(context).apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                this.settings.apply {
-                    javaScriptEnabled = true
-                    allowFileAccess = false
-                    allowContentAccess = false
-                    blockNetworkLoads = true
-                    domStorageEnabled = false
-                    setSupportZoom(false)
-                    builtInZoomControls = false
-                    displayZoomControls = false
-                    mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                }
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-                webViewClient = object : WebViewClient() {
-                    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                        assetLoader.shouldInterceptRequest(request.url)
+internal data class ReaderPalette(
+    val background: Color,
+    val foreground: Color,
+    val muted: Color,
+    val placeholder: Color,
+)
 
-                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        return when (request.url.scheme) {
-                            "sonovel" -> {
-                                if (request.url.host == "next") onNextChapter() else onPreviousChapter()
-                                true
-                            }
-                            "https" -> request.url.host != "appassets.androidplatform.net"
-                            else -> true
-                        }
-                    }
-
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        view.evaluateJavascript(
-                            restorePositionScript(settings.readingMode, initialFraction, fragment),
-                            null,
-                        )
-                        if (fragment != null) onFragmentConsumed()
-                    }
-                }
-                setOnScrollChangeListener { web, scrollX, scrollY, _, _ ->
-                    if (settings.readingMode == ReadingMode.SCROLL) {
-                        val readerView = web as WebView
-                        @Suppress("DEPRECATION")
-                        val max = (readerView.contentHeight * readerView.scale - readerView.height).coerceAtLeast(1f)
-                        onProgress((scrollY / max).coerceIn(0f, 1f))
-                    }
-                }
-            }
-        },
-        update = { webView ->
-            webView.setOnTouchListener { view, event ->
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        downX = event.x
-                        downY = event.y
-                        settings.readingMode == ReadingMode.PAGED
-                    }
-                    MotionEvent.ACTION_MOVE -> settings.readingMode == ReadingMode.PAGED
-                    MotionEvent.ACTION_UP -> {
-                        val deltaX = event.x - downX
-                        val deltaY = event.y - downY
-                        if (settings.readingMode == ReadingMode.PAGED) {
-                            when {
-                                kotlin.math.abs(deltaX) > 56 -> changePage(webView, if (deltaX < 0) 1 else -1, onProgress, onPreviousChapter, onNextChapter)
-                                event.x < view.width * 0.32f -> changePage(webView, -1, onProgress, onPreviousChapter, onNextChapter)
-                                event.x > view.width * 0.68f -> changePage(webView, 1, onProgress, onPreviousChapter, onNextChapter)
-                                else -> onToggleControls()
-                            }
-                            view.performClick()
-                            true
-                        } else {
-                            when {
-                                kotlin.math.abs(deltaX) < 18 && kotlin.math.abs(deltaY) < 18 &&
-                                    event.x in view.width * 0.3f..view.width * 0.7f -> onToggleControls()
-                                deltaY < -90 && !webView.canScrollVertically(1) -> onNextChapter()
-                                deltaY > 90 && !webView.canScrollVertically(-1) -> onPreviousChapter()
-                            }
-                            false
-                        }
-                    }
-                    else -> settings.readingMode == ReadingMode.PAGED
-                }
-            }
-            if (webView.tag != loadKey) {
-                webView.tag = loadKey
-                val chapterFile = File(chapter.absolutePath)
-                val parent = chapter.href.substringBeforeLast('/', "")
-                    .split('/').filter(String::isNotEmpty).joinToString("/") { Uri.encode(it) }
-                val basePath = buildString {
-                    append("https://appassets.androidplatform.net/books/")
-                    append(Uri.encode(bookId))
-                    append("/content/")
-                    if (parent.isNotEmpty()) append(parent).append('/')
-                }
-                val html = buildReaderHtml(chapterFile, settings, darkSystem)
-                webView.loadDataWithBaseURL(basePath, html, "text/html", Charsets.UTF_8.name(), null)
-            }
-        },
-        onRelease = { it.destroy() },
-    )
-}
-
-private fun changePage(
-    webView: WebView,
-    direction: Int,
-    onProgress: (Float) -> Unit,
-    onPreviousChapter: () -> Unit,
-    onNextChapter: () -> Unit,
-) {
-    val script = """
-        (() => {
-          const height = window.innerHeight;
-          const step = Math.max(height - 176, 1);
-          const root = document.scrollingElement || document.documentElement;
-          const max = Math.max(root.scrollHeight - height, 0);
-          const current = window.scrollY;
-          const target = current + (${direction}) * step;
-          if (target < -1) return JSON.stringify({boundary:'previous', fraction:0});
-          if (target > max + 1) return JSON.stringify({boundary:'next', fraction:1});
-          const y = Math.max(0, Math.min(max, Math.round(target / step) * step));
-          window.scrollTo({left:0, top:y, behavior:'smooth'});
-          return JSON.stringify({boundary:'', fraction:max <= 0 ? 0 : y / max});
-        })()
-    """.trimIndent()
-    webView.evaluateJavascript(script) { raw ->
-        runCatching {
-            val decoded = JSONTokener(raw).nextValue() as? String ?: raw
-            JSONObject(decoded)
-        }.onSuccess { result ->
-            when (result.optString("boundary")) {
-                "previous" -> onPreviousChapter()
-                "next" -> onNextChapter()
-                else -> onProgress(result.optDouble("fraction", 0.0).toFloat())
-            }
+@Composable
+private fun readerPalette(theme: ReaderTheme): ReaderPalette {
+    val darkSystem = androidx.compose.foundation.isSystemInDarkTheme()
+    return when (theme) {
+        ReaderTheme.LIGHT -> ReaderPalette(Color(0xFFFAF8F3), Color(0xFF25231F), Color(0xFF6D685E), Color(0xFFE8E3D9))
+        ReaderTheme.DARK -> ReaderPalette(Color(0xFF171717), Color(0xFFE7E2D8), Color(0xFFAAA49A), Color(0xFF292826))
+        ReaderTheme.SEPIA -> ReaderPalette(Color(0xFFF2E8CF), Color(0xFF43392A), Color(0xFF786A55), Color(0xFFE3D5B5))
+        ReaderTheme.SYSTEM -> if (darkSystem) {
+            ReaderPalette(Color(0xFF171717), Color(0xFFE7E2D8), Color(0xFFAAA49A), Color(0xFF292826))
+        } else {
+            ReaderPalette(Color(0xFFFAF8F3), Color(0xFF25231F), Color(0xFF6D685E), Color(0xFFE8E3D9))
         }
     }
 }

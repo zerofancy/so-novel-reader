@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import top.ntutn.sonovelreader.AppContainer
 import top.ntutn.sonovelreader.data.ImportBatchResult
 import top.ntutn.sonovelreader.data.ParsedBook
+import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReaderSettings
 import top.ntutn.sonovelreader.data.ReaderTheme
@@ -105,6 +106,8 @@ data class ReaderUiState(
     val loading: Boolean = true,
     val parsedBook: ParsedBook? = null,
     val locator: ReaderLocator? = null,
+    val content: ReaderContent? = null,
+    val contentLoading: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
     val error: String? = null,
 )
@@ -116,6 +119,12 @@ class ReaderViewModel(
     private val mutableState = MutableStateFlow(ReaderUiState())
     val state = mutableState.asStateFlow()
     private var saveJob: Job? = null
+    private var loadJob: Job? = null
+    private var chapterJob: Job? = null
+    private val chapterCache = object : LinkedHashMap<String, ReaderContent>(CHAPTER_CACHE_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ReaderContent>?): Boolean =
+            size > CHAPTER_CACHE_SIZE
+    }
 
     init {
         viewModelScope.launch {
@@ -127,7 +136,8 @@ class ReaderViewModel(
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             mutableState.value = mutableState.value.copy(loading = true, error = null)
             try {
                 val book = container.bookRepository.openBook(bookId)
@@ -145,7 +155,9 @@ class ReaderViewModel(
                     loading = false,
                     parsedBook = book,
                     locator = locator,
+                    content = null,
                 )
+                loadChapter(book, index)
             } catch (error: Exception) {
                 mutableState.value = mutableState.value.copy(
                     loading = false,
@@ -159,6 +171,7 @@ class ReaderViewModel(
         val book = mutableState.value.parsedBook ?: return
         if (index !in book.chapters.indices) return
         updateLocator(ReaderLocator(book.chapters[index].href, index, fraction), true)
+        loadChapter(book, index)
     }
 
     fun updateFraction(fraction: Float) {
@@ -175,6 +188,32 @@ class ReaderViewModel(
 
     fun setMode(value: ReadingMode) = viewModelScope.launch { container.settingsRepository.setReadingMode(value) }
 
+    private fun loadChapter(book: ParsedBook, index: Int) {
+        val chapter = book.chapters[index]
+        chapterJob?.cancel()
+        chapterCache[chapter.href]?.let { cached ->
+            mutableState.value = mutableState.value.copy(content = cached, contentLoading = false, error = null)
+            return
+        }
+        mutableState.value = mutableState.value.copy(content = null, contentLoading = true, error = null)
+        chapterJob = viewModelScope.launch {
+            try {
+                val content = container.bookRepository.readChapter(book, chapter)
+                chapterCache[chapter.href] = content
+                if (mutableState.value.locator?.chapterHref == chapter.href) {
+                    mutableState.value = mutableState.value.copy(content = content, contentLoading = false)
+                }
+            } catch (error: Exception) {
+                if (mutableState.value.locator?.chapterHref == chapter.href) {
+                    mutableState.value = mutableState.value.copy(
+                        contentLoading = false,
+                        error = error.message ?: "无法解析本章内容",
+                    )
+                }
+            }
+        }
+    }
+
     private fun updateLocator(locator: ReaderLocator, immediate: Boolean) {
         mutableState.value = mutableState.value.copy(locator = locator)
         saveJob?.cancel()
@@ -182,6 +221,10 @@ class ReaderViewModel(
             if (!immediate) delay(500)
             container.progressRepository.save(bookId, locator)
         }
+    }
+
+    private companion object {
+        const val CHAPTER_CACHE_SIZE = 8
     }
 }
 
