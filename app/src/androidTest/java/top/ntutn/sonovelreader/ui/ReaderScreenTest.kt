@@ -6,8 +6,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.semantics.SemanticsProperties
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -92,5 +96,108 @@ class ReaderScreenTest {
             assertEquals(1, toggleCount)
             assertEquals(1, nextChapterCount)
         }
+    }
+
+    @Test
+    fun verticalReaderBoundaryPullActivatesPreviousAndNextChapter() {
+        var previousChapterCount = 0
+        var nextChapterCount = 0
+        composeRule.setContent {
+            MaterialTheme {
+                VerticalReader(
+                    content = ReaderContent(listOf(ReaderBlock.Text("短章节"))),
+                    settings = ReaderSettings(),
+                    palette = palette,
+                    initialFraction = 0f,
+                    fragment = null,
+                    jumpToken = 0,
+                    hasPreviousChapter = true,
+                    hasNextChapter = true,
+                    onToggleControls = {},
+                    onProgress = {},
+                    onFragmentConsumed = {},
+                    onPreviousChapter = { previousChapterCount++ },
+                    onNextChapter = { nextChapterCount++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("上一章").performClick()
+        composeRule.onRoot().performTouchInput {
+            swipe(
+                start = Offset(center.x, height * 0.2f),
+                end = Offset(center.x, height * 0.9f),
+                durationMillis = 600,
+            )
+        }
+        composeRule.onRoot().performTouchInput {
+            swipe(
+                start = Offset(center.x, height * 0.8f),
+                end = Offset(center.x, height * 0.1f),
+                durationMillis = 600,
+            )
+        }
+
+        composeRule.runOnIdle {
+            assertEquals(2, previousChapterCount)
+            assertEquals(1, nextChapterCount)
+        }
+    }
+
+    @Test
+    fun verticalReaderReverseDragCancelsArmedPull() {
+        var previousChapterCount = 0
+        var nextChapterCount = 0
+        composeRule.setContent {
+            MaterialTheme {
+                VerticalReader(
+                    content = ReaderContent(listOf(ReaderBlock.Text("长章节".repeat(4_000)))),
+                    settings = ReaderSettings(),
+                    palette = palette,
+                    initialFraction = 0f,
+                    fragment = null,
+                    jumpToken = 0,
+                    hasPreviousChapter = true,
+                    hasNextChapter = true,
+                    onToggleControls = {},
+                    onProgress = {},
+                    onFragmentConsumed = {},
+                    onPreviousChapter = { previousChapterCount++ },
+                    onNextChapter = { nextChapterCount++ },
+                )
+            }
+        }
+
+        composeRule.onRoot().performTouchInput {
+            down(Offset(center.x, height * 0.25f))
+            moveTo(Offset(center.x, height * 0.9f), delayMillis = 500)
+            moveTo(Offset(center.x, height * 0.45f), delayMillis = 500)
+            up()
+        }
+
+        composeRule.runOnIdle {
+            assertEquals(0, previousChapterCount)
+            assertEquals(0, nextChapterCount)
+        }
+    }
+
+    @Test
+    fun armedChapterNavigationExposesReleaseSemantics() {
+        composeRule.setContent {
+            MaterialTheme {
+                ChapterNavigation(
+                    label = "上一章",
+                    enabled = true,
+                    onClick = {},
+                    palette = palette,
+                    edge = ChapterPullEdge.PREVIOUS,
+                    pullProgress = 1f,
+                    armed = true,
+                )
+            }
+        }
+
+        val node = composeRule.onNodeWithTag("chapter-navigation-previous").fetchSemanticsNode()
+        assertEquals("松手切换上一章", node.config[SemanticsProperties.StateDescription])
     }
 }

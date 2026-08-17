@@ -2,6 +2,10 @@ package top.ntutn.sonovelreader.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -64,12 +68,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +92,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -322,6 +336,61 @@ internal fun VerticalReader(
 ) {
     val listState = rememberLazyListState()
     val textStyle = readerTextStyle(settings, palette.foreground)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { CHAPTER_PULL_THRESHOLD.roundToPx().toFloat() }
+    val maxDistancePx = with(density) { CHAPTER_PULL_MAX_DISTANCE.roundToPx().toFloat() }
+    val pullState = remember(content, hasPreviousChapter, hasNextChapter, thresholdPx, maxDistancePx) {
+        ChapterPullState(thresholdPx, maxDistancePx)
+    }
+    val nestedScrollConnection = remember(pullState, listState, hasPreviousChapter, hasNextChapter) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val consumed = pullState.consumePreScroll(
+                    deltaY = available.y,
+                    isUserInput = source == NestedScrollSource.UserInput,
+                )
+                return Offset(0f, consumed)
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                val consumedY = pullState.consumePostScroll(
+                    deltaY = available.y,
+                    atStart = !listState.canScrollBackward,
+                    atEnd = !listState.canScrollForward,
+                    hasPreviousChapter = hasPreviousChapter,
+                    hasNextChapter = hasNextChapter,
+                    isUserInput = source == NestedScrollSource.UserInput,
+                )
+                return Offset(0f, consumedY)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                val hadActivePull = pullState.isActive
+                when (pullState.release()) {
+                    ChapterPullEdge.PREVIOUS -> onPreviousChapter()
+                    ChapterPullEdge.NEXT -> onNextChapter()
+                    ChapterPullEdge.NONE -> Unit
+                }
+                return if (hadActivePull) available else Velocity.Zero
+            }
+        }
+    }
+    val pullOffsetPx by animateFloatAsState(
+        targetValue = pullState.signedDistancePx,
+        animationSpec = if (pullState.isActive) {
+            snap()
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            )
+        },
+        label = "chapterPullOffset",
+    )
 
     LaunchedEffect(content, jumpToken) {
         val target = fragment?.let(content.anchors::get) ?: content.positionAt(initialFraction)
@@ -340,24 +409,46 @@ internal fun VerticalReader(
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize().pointerInput(onToggleControls) {
-            detectTapGestures { position ->
-                if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
+    Box(Modifier.fillMaxSize().clipToBounds()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
+                .graphicsLayer { translationY = pullOffsetPx }
+                .pointerInput(onToggleControls) {
+                    detectTapGestures { position ->
+                        if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
+                    }
+                },
+            contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            overscrollEffect = null,
+        ) {
+            item(key = "previous-chapter") {
+                ChapterNavigation(
+                    label = "上一章",
+                    enabled = hasPreviousChapter,
+                    onClick = onPreviousChapter,
+                    palette = palette,
+                    edge = ChapterPullEdge.PREVIOUS,
+                    pullProgress = if (pullState.edge == ChapterPullEdge.PREVIOUS) pullState.progress else 0f,
+                    armed = pullState.edge == ChapterPullEdge.PREVIOUS && pullState.isArmed,
+                )
             }
-        },
-        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item(key = "previous-chapter") {
-            ChapterNavigation("上一章", hasPreviousChapter, onPreviousChapter, palette)
-        }
-        itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { _, block ->
-            ReaderBlockView(block, textStyle, palette)
-        }
-        item(key = "next-chapter") {
-            ChapterNavigation("下一章", hasNextChapter, onNextChapter, palette)
+            itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { _, block ->
+                ReaderBlockView(block, textStyle, palette)
+            }
+            item(key = "next-chapter") {
+                ChapterNavigation(
+                    label = "下一章",
+                    enabled = hasNextChapter,
+                    onClick = onNextChapter,
+                    palette = palette,
+                    edge = ChapterPullEdge.NEXT,
+                    pullProgress = if (pullState.edge == ChapterPullEdge.NEXT) pullState.progress else 0f,
+                    armed = pullState.edge == ChapterPullEdge.NEXT && pullState.isArmed,
+                )
+            }
         }
     }
 }
@@ -549,11 +640,57 @@ private fun ImagePlaceholder(label: String, palette: ReaderPalette, modifier: Mo
 }
 
 @Composable
-private fun ChapterNavigation(label: String, enabled: Boolean, onClick: () -> Unit, palette: ReaderPalette) {
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        TextButton(onClick = onClick, enabled = enabled) { Text(label, color = if (enabled) palette.muted else palette.placeholder) }
+internal fun ChapterNavigation(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    palette: ReaderPalette,
+    edge: ChapterPullEdge,
+    pullProgress: Float,
+    armed: Boolean,
+) {
+    val progress = pullProgress.coerceIn(0f, 1f)
+    val scale by animateFloatAsState(
+        targetValue = if (armed) 1.06f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "chapterNavigationScale",
+    )
+    val state = when {
+        !enabled -> "没有$label"
+        armed -> "松手切换$label"
+        progress > 0f && edge == ChapterPullEdge.PREVIOUS -> "继续下拉切换$label"
+        progress > 0f -> "继续上拉切换$label"
+        else -> "点击切换$label"
+    }
+    val textColor = when {
+        !enabled -> palette.placeholder
+        else -> lerp(palette.muted, palette.foreground, progress)
+    }
+    Box(
+        Modifier.fillMaxWidth()
+            .testTag("chapter-navigation-${edge.name.lowercase()}")
+            .semantics { stateDescription = state }
+            .background(
+                color = palette.foreground.copy(alpha = 0.16f * progress),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        TextButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        ) {
+            Text(label, color = textColor, fontWeight = if (armed) FontWeight.SemiBold else FontWeight.Normal)
+        }
     }
 }
+
+private val CHAPTER_PULL_THRESHOLD = 64.dp
+private val CHAPTER_PULL_MAX_DISTANCE = 112.dp
 
 @Composable
 private fun TocRow(item: TocItem, selected: Boolean, onClick: () -> Unit) {
