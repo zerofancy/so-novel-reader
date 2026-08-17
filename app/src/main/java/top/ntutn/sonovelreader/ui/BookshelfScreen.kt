@@ -159,17 +159,10 @@ private fun BookCard(
                         contentScale = ContentScale.Crop,
                     )
                 } else {
-                    Box(
-                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Default.AutoStories,
-                            contentDescription = null,
-                            modifier = Modifier.size(44.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                    }
+                    GeneratedBookCover(
+                        title = book.title,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
             IconButton(
