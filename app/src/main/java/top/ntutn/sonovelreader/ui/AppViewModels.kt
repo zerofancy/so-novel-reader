@@ -24,6 +24,9 @@ import top.ntutn.sonovelreader.data.ReaderSettings
 import top.ntutn.sonovelreader.data.ReaderTheme
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.data.ShelfBook
+import top.ntutn.sonovelreader.tts.TtsPlaybackStatus
+import top.ntutn.sonovelreader.tts.TtsPlaybackState
+import top.ntutn.sonovelreader.tts.TtsVoiceCatalogState
 
 data class LibraryUiState(
     val books: List<ShelfBook> = emptyList(),
@@ -94,12 +97,38 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         SharingStarted.WhileSubscribed(5_000),
         ReaderSettings(),
     )
+    private val mutableTtsVoices = MutableStateFlow(TtsVoiceCatalogState())
+    val ttsVoices = mutableTtsVoices.asStateFlow()
 
     fun setMode(value: ReadingMode) = viewModelScope.launch { container.settingsRepository.setReadingMode(value) }
     fun setFontSize(value: Int) = viewModelScope.launch { container.settingsRepository.setFontSize(value) }
     fun setLineHeight(value: Float) = viewModelScope.launch { container.settingsRepository.setLineHeight(value) }
     fun setTheme(value: ReaderTheme) = viewModelScope.launch { container.settingsRepository.setTheme(value) }
     fun setKeepScreenOn(value: Boolean) = viewModelScope.launch { container.settingsRepository.setKeepScreenOn(value) }
+    fun setTtsRate(value: Float) = updateTtsSettings(settings.value.copy(ttsRate = value.coerceIn(0.5f, 2f))) {
+        container.settingsRepository.setTtsRate(value)
+    }
+    fun setTtsPitch(value: Float) = updateTtsSettings(settings.value.copy(ttsPitch = value.coerceIn(0.5f, 2f))) {
+        container.settingsRepository.setTtsPitch(value)
+    }
+    fun setTtsVoiceName(value: String?) = updateTtsSettings(settings.value.copy(ttsVoiceName = value)) {
+        container.settingsRepository.setTtsVoiceName(value)
+    }
+
+    fun loadTtsVoices() {
+        if (mutableTtsVoices.value.loading || mutableTtsVoices.value.voices.isNotEmpty()) return
+        viewModelScope.launch {
+            mutableTtsVoices.value = TtsVoiceCatalogState(loading = true)
+            mutableTtsVoices.value = container.ttsVoiceCatalog.load()
+        }
+    }
+
+    private fun updateTtsSettings(value: ReaderSettings, update: suspend () -> Unit) = viewModelScope.launch {
+        update()
+        if (container.ttsPlaybackManager.state.value.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PAUSED)) {
+            container.ttsPlaybackManager.updateSettings(value)
+        }
+    }
 }
 
 data class ReaderUiState(
@@ -110,6 +139,7 @@ data class ReaderUiState(
     val contentLoading: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
     val error: String? = null,
+    val ttsPlayback: TtsPlaybackState = TtsPlaybackState(),
 )
 
 class ReaderViewModel(
@@ -130,6 +160,11 @@ class ReaderViewModel(
         viewModelScope.launch {
             container.settingsRepository.settings.collect { settings ->
                 mutableState.value = mutableState.value.copy(settings = settings)
+            }
+        }
+        viewModelScope.launch {
+            container.ttsPlaybackManager.state.collect { playback ->
+                mutableState.value = mutableState.value.copy(ttsPlayback = playback)
             }
         }
         load()
@@ -187,6 +222,30 @@ class ReaderViewModel(
     }
 
     fun setMode(value: ReadingMode) = viewModelScope.launch { container.settingsRepository.setReadingMode(value) }
+
+    fun toggleTts() {
+        val state = mutableState.value
+        val playback = state.ttsPlayback
+        when {
+            playback.bookId == bookId && playback.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PREPARING) ->
+                container.ttsPlaybackManager.pause()
+            playback.bookId == bookId && playback.status == TtsPlaybackStatus.PAUSED ->
+                container.ttsPlaybackManager.resume()
+            else -> state.locator?.let { container.ttsPlaybackManager.play(bookId, it, state.settings) }
+        }
+    }
+
+    fun stopTtsForManualNavigation() {
+        val playback = mutableState.value.ttsPlayback
+        if (playback.bookId == bookId && playback.status in setOf(
+                TtsPlaybackStatus.PREPARING,
+                TtsPlaybackStatus.PLAYING,
+                TtsPlaybackStatus.PAUSED,
+            )
+        ) {
+            container.ttsPlaybackManager.stop()
+        }
+    }
 
     private fun loadChapter(book: ParsedBook, index: Int) {
         val chapter = book.chapters[index]

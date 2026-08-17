@@ -86,7 +86,7 @@ internal fun parseReaderContent(
 
     walk(document.body())
     flushText()
-    val fallbackBlocks = blocks.ifEmpty { listOf(ReaderBlock.Text("本章没有可显示的内容")) }
+    val fallbackBlocks = blocks.ifEmpty { listOf(ReaderBlock.Text(EMPTY_CHAPTER_TEXT)) }
     val lastIndex = fallbackBlocks.lastIndex.coerceAtLeast(0)
     val anchors = anchorIndexes.mapValues { (_, index) ->
         ReaderContentPosition(index.coerceIn(0, lastIndex))

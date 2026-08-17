@@ -20,6 +20,9 @@ class SettingsRepository(private val context: Context) {
         val lineHeight = floatPreferencesKey("line_height")
         val theme = stringPreferencesKey("reader_theme")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
+        val ttsRate = floatPreferencesKey("tts_rate")
+        val ttsPitch = floatPreferencesKey("tts_pitch")
+        val ttsVoiceName = stringPreferencesKey("tts_voice_name")
     }
 
     val settings: Flow<ReaderSettings> = context.readerDataStore.data.map(::decode)
@@ -29,6 +32,13 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLineHeight(value: Float) = update(Keys.lineHeight, value.coerceIn(1.2f, 2.2f))
     suspend fun setTheme(value: ReaderTheme) = update(Keys.theme, value.name)
     suspend fun setKeepScreenOn(value: Boolean) = update(Keys.keepScreenOn, value)
+    suspend fun setTtsRate(value: Float) = update(Keys.ttsRate, value.coerceIn(0.5f, 2f))
+    suspend fun setTtsPitch(value: Float) = update(Keys.ttsPitch, value.coerceIn(0.5f, 2f))
+    suspend fun setTtsVoiceName(value: String?) {
+        context.readerDataStore.edit { preferences ->
+            if (value == null) preferences.remove(Keys.ttsVoiceName) else preferences[Keys.ttsVoiceName] = value
+        }
+    }
 
     private suspend fun <T> update(key: Preferences.Key<T>, value: T) {
         context.readerDataStore.edit { it[key] = value }
@@ -40,6 +50,9 @@ class SettingsRepository(private val context: Context) {
         lineHeight = (preferences[Keys.lineHeight] ?: 1.7f).coerceIn(1.2f, 2.2f),
         theme = preferences[Keys.theme].toEnumOrDefault(ReaderTheme.SYSTEM),
         keepScreenOn = preferences[Keys.keepScreenOn] ?: false,
+        ttsRate = (preferences[Keys.ttsRate] ?: 1f).coerceIn(0.5f, 2f),
+        ttsPitch = (preferences[Keys.ttsPitch] ?: 1f).coerceIn(0.5f, 2f),
+        ttsVoiceName = preferences[Keys.ttsVoiceName],
     )
 }
 

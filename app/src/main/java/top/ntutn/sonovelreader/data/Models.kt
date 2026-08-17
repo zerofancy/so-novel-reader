@@ -13,6 +13,9 @@ data class ReaderSettings(
     val lineHeight: Float = 1.7f,
     val theme: ReaderTheme = ReaderTheme.SYSTEM,
     val keepScreenOn: Boolean = false,
+    val ttsRate: Float = 1f,
+    val ttsPitch: Float = 1f,
+    val ttsVoiceName: String? = null,
 )
 
 data class ReaderLocator(
@@ -53,6 +56,8 @@ sealed interface ReaderBlock {
         private const val IMAGE_PROGRESS_WEIGHT = 400
     }
 }
+
+internal const val EMPTY_CHAPTER_TEXT = "本章没有可显示的内容"
 
 data class ReaderContentPosition(
     val blockIndex: Int,

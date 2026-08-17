@@ -6,6 +6,8 @@ import top.ntutn.sonovelreader.data.BookRepository
 import top.ntutn.sonovelreader.data.ProgressRepository
 import top.ntutn.sonovelreader.data.SettingsRepository
 import top.ntutn.sonovelreader.data.local.LibraryDatabase
+import top.ntutn.sonovelreader.tts.SystemTtsVoiceCatalog
+import top.ntutn.sonovelreader.tts.TtsPlaybackManager
 
 class SoNovelReaderApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
@@ -21,4 +23,6 @@ class AppContainer(application: Application) {
     val bookRepository = BookRepository(application, database.libraryDao())
     val progressRepository = ProgressRepository(database.libraryDao())
     val settingsRepository = SettingsRepository(application)
+    val ttsPlaybackManager = TtsPlaybackManager(application)
+    val ttsVoiceCatalog = SystemTtsVoiceCatalog(application)
 }

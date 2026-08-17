@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
@@ -19,6 +20,7 @@ import top.ntutn.sonovelreader.data.ReaderBlock
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderSettings
 import top.ntutn.sonovelreader.data.ReadingMode
+import top.ntutn.sonovelreader.tts.TtsSentenceLocator
 
 class ReaderScreenTest {
     @get:Rule
@@ -96,6 +98,58 @@ class ReaderScreenTest {
             assertEquals(1, toggleCount)
             assertEquals(1, nextChapterCount)
         }
+    }
+
+    @Test
+    fun verticalReaderMarksActiveTtsSentenceAsSelected() {
+        composeRule.setContent {
+            MaterialTheme {
+                VerticalReader(
+                    content = ReaderContent(listOf(ReaderBlock.Text("第一句。第二句。"))),
+                    settings = ReaderSettings(),
+                    palette = palette,
+                    initialFraction = 0f,
+                    fragment = null,
+                    jumpToken = 0,
+                    hasPreviousChapter = false,
+                    hasNextChapter = false,
+                    onToggleControls = {},
+                    onProgress = {},
+                    onFragmentConsumed = {},
+                    onPreviousChapter = {},
+                    onNextChapter = {},
+                    activeSentence = TtsSentenceLocator(0, 0, 0, 4),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("第一句。第二句。").assertIsSelected()
+    }
+
+    @Test
+    fun pagedReaderMarksActiveTtsSentenceAsSelected() {
+        composeRule.setContent {
+            MaterialTheme {
+                PagedReader(
+                    content = ReaderContent(listOf(ReaderBlock.Text("分页第一句。分页第二句。"))),
+                    settings = ReaderSettings(readingMode = ReadingMode.PAGED),
+                    palette = palette,
+                    initialFraction = 0f,
+                    fragment = null,
+                    jumpToken = 0,
+                    hasPreviousChapter = false,
+                    hasNextChapter = false,
+                    onToggleControls = {},
+                    onProgress = {},
+                    onFragmentConsumed = {},
+                    onPreviousChapter = {},
+                    onNextChapter = {},
+                    activeSentence = TtsSentenceLocator(0, 0, 0, 6),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("分页第一句。分页第二句。").assertIsSelected()
     }
 
     @Test

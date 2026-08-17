@@ -15,17 +15,22 @@ import top.ntutn.sonovelreader.ui.theme.SoNovelReaderTheme
 class MainActivity : ComponentActivity() {
     private val mutableSharedUris = MutableStateFlow<List<Uri>>(emptyList())
     val sharedUris = mutableSharedUris.asStateFlow()
+    private val mutableRequestedTtsBookId = MutableStateFlow<String?>(null)
+    val requestedTtsBookId = mutableRequestedTtsBookId.asStateFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         acceptImportIntent(intent)
+        acceptTtsIntent(intent)
         setContent {
             SoNovelReaderTheme {
                 SoNovelReaderApp(
                     container = (application as SoNovelReaderApplication).container,
                     sharedUris = sharedUris,
                     consumeSharedUris = { mutableSharedUris.value = emptyList() },
+                    requestedTtsBookId = requestedTtsBookId,
+                    consumeRequestedTtsBook = { mutableRequestedTtsBookId.value = null },
                 )
             }
         }
@@ -35,6 +40,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         acceptImportIntent(intent)
+        acceptTtsIntent(intent)
     }
 
     private fun acceptImportIntent(intent: Intent?) {
@@ -59,5 +65,16 @@ class MainActivity : ComponentActivity() {
             }
         }.distinct()
         if (uris.isNotEmpty()) mutableSharedUris.value = uris
+    }
+
+    private fun acceptTtsIntent(intent: Intent?) {
+        if (intent?.action == ACTION_OPEN_TTS_BOOK) {
+            mutableRequestedTtsBookId.value = intent.getStringExtra(EXTRA_TTS_BOOK_ID)
+        }
+    }
+
+    companion object {
+        const val ACTION_OPEN_TTS_BOOK = "top.ntutn.sonovelreader.OPEN_TTS_BOOK"
+        const val EXTRA_TTS_BOOK_ID = "tts_book_id"
     }
 }

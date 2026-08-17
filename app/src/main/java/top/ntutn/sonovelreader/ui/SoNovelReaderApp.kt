@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import top.ntutn.sonovelreader.AppContainer
 
@@ -47,14 +49,19 @@ fun SoNovelReaderApp(
     container: AppContainer,
     sharedUris: StateFlow<List<Uri>>,
     consumeSharedUris: () -> Unit,
+    requestedTtsBookId: StateFlow<String?>,
+    consumeRequestedTtsBook: () -> Unit,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    val appScope = rememberCoroutineScope()
     val libraryViewModel: LibraryViewModel = viewModel(factory = AppViewModelFactory(container))
     val settingsViewModel: SettingsViewModel = viewModel(factory = AppViewModelFactory(container))
     val libraryState by libraryViewModel.state.collectAsStateWithLifecycle()
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+    val ttsVoices by settingsViewModel.ttsVoices.collectAsStateWithLifecycle()
     val incomingUris by sharedUris.collectAsStateWithLifecycle()
+    val ttsBookId by requestedTtsBookId.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {
         libraryViewModel.importBooks(it)
     }
@@ -63,6 +70,13 @@ fun SoNovelReaderApp(
         if (incomingUris.isNotEmpty()) {
             libraryViewModel.importBooks(incomingUris)
             consumeSharedUris()
+        }
+    }
+
+    LaunchedEffect(ttsBookId) {
+        ttsBookId?.let { bookId ->
+            navController.navigate(ReaderRoute(bookId)) { launchSingleTop = true }
+            consumeRequestedTtsBook()
         }
     }
 
@@ -145,6 +159,7 @@ fun SoNovelReaderApp(
                 )
             }
             composable<SettingsRoute> {
+                LaunchedEffect(Unit) { settingsViewModel.loadTtsVoices() }
                 SettingsScreen(
                     settings = settings,
                     onModeChange = settingsViewModel::setMode,
@@ -152,6 +167,10 @@ fun SoNovelReaderApp(
                     onLineHeightChange = settingsViewModel::setLineHeight,
                     onThemeChange = settingsViewModel::setTheme,
                     onKeepScreenOnChange = settingsViewModel::setKeepScreenOn,
+                    ttsVoices = ttsVoices,
+                    onTtsRateChange = settingsViewModel::setTtsRate,
+                    onTtsPitchChange = settingsViewModel::setTtsPitch,
+                    onTtsVoiceChange = settingsViewModel::setTtsVoiceName,
                     modifier = Modifier.padding(contentPadding),
                 )
             }
@@ -164,6 +183,8 @@ fun SoNovelReaderApp(
                 ReaderScreen(
                     viewModel = readerViewModel,
                     onBack = navController::popBackStack,
+                    onOpenSettings = { navController.navigate(SettingsRoute) },
+                    onMessage = { message -> appScope.launch { snackbarHostState.showSnackbar(message) } },
                 )
             }
         }

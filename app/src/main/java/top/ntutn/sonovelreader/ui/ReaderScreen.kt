@@ -1,6 +1,11 @@
 package top.ntutn.sonovelreader.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,6 +16,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -39,6 +46,9 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.BottomAppBar
@@ -67,11 +77,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -82,9 +94,13 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,12 +127,17 @@ import top.ntutn.sonovelreader.data.ReaderSettings
 import top.ntutn.sonovelreader.data.ReaderTheme
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.data.TocItem
+import top.ntutn.sonovelreader.tts.TtsPlaybackStatus
+import top.ntutn.sonovelreader.tts.TtsSentenceLocator
+import top.ntutn.sonovelreader.tts.progressAt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     viewModel: ReaderViewModel,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onMessage: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
@@ -124,8 +145,30 @@ fun ReaderScreen(
     var pendingFragment by remember { mutableStateOf<String?>(null) }
     var jumpToken by remember { mutableIntStateOf(0) }
     val view = LocalView.current
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val palette = readerPalette(state.settings.theme)
+    val playback = state.ttsPlayback
+    val activeSentence = playback.activeSentence
+        ?.takeIf { playback.bookId == state.parsedBook?.book?.id && playback.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PAUSED) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) onMessage("未授予通知权限，后台朗读控制可能不会显示在通知栏")
+        viewModel.toggleTts()
+    }
+    val toggleTts = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            playback.status !in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PREPARING)
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.toggleTts()
+        }
+    }
+
+    LaunchedEffect(playback.error) {
+        playback.error?.let(onMessage)
+    }
 
     DisposableEffect(state.settings.keepScreenOn, view) {
         val old = view.keepScreenOn
@@ -171,12 +214,23 @@ fun ReaderScreen(
                 val content = state.content!!
                 val chapter = book.chapters[locator.chapterIndex.coerceIn(book.chapters.indices)]
                 val onPreviousChapter = {
+                    viewModel.stopTtsForManualNavigation()
                     pendingFragment = null
                     viewModel.goToChapter(locator.chapterIndex - 1, 1f)
                 }
                 val onNextChapter = {
+                    viewModel.stopTtsForManualNavigation()
                     pendingFragment = null
                     viewModel.goToChapter(locator.chapterIndex + 1, 0f)
+                }
+
+                LaunchedEffect(activeSentence?.locator, content, locator.chapterIndex) {
+                    val sentence = activeSentence ?: return@LaunchedEffect
+                    when {
+                        sentence.locator.chapterIndex != locator.chapterIndex ->
+                            viewModel.goToChapter(sentence.locator.chapterIndex, 0f)
+                        else -> viewModel.updateFraction(content.progressAt(sentence))
+                    }
                 }
 
                 if (state.settings.readingMode == ReadingMode.SCROLL) {
@@ -194,6 +248,8 @@ fun ReaderScreen(
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
+                        activeSentence = activeSentence?.locator,
+                        onManualNavigation = viewModel::stopTtsForManualNavigation,
                     )
                 } else {
                     PagedReader(
@@ -210,6 +266,8 @@ fun ReaderScreen(
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
+                        activeSentence = activeSentence?.locator,
+                        onManualNavigation = viewModel::stopTtsForManualNavigation,
                     )
                 }
 
@@ -272,6 +330,23 @@ fun ReaderScreen(
                                 contentDescription = "切换阅读方式",
                             )
                         }
+                        IconButton(onClick = toggleTts) {
+                            if (playback.bookId == book.book.id && playback.status == TtsPlaybackStatus.PREPARING) {
+                                CircularProgressIndicator(Modifier.width(22.dp).height(22.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(
+                                    if (playback.bookId == book.book.id && playback.status == TtsPlaybackStatus.PLAYING) {
+                                        Icons.Default.Pause
+                                    } else {
+                                        Icons.Default.PlayArrow
+                                    },
+                                    contentDescription = if (playback.status == TtsPlaybackStatus.PLAYING) "暂停朗读" else "开始朗读",
+                                )
+                            }
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Default.RecordVoiceOver, contentDescription = "朗读设置")
+                        }
                         Spacer(Modifier.weight(1f))
                         IconButton(
                             onClick = { viewModel.goToChapter(locator.chapterIndex + 1, 0f) },
@@ -300,6 +375,7 @@ fun ReaderScreen(
                                         onClick = {
                                             val index = book.chapters.indexOfFirst { it.href == item.href }
                                             if (index >= 0) {
+                                                viewModel.stopTtsForManualNavigation()
                                                 pendingFragment = item.fragment
                                                 jumpToken++
                                                 viewModel.goToChapter(index, 0f)
@@ -333,6 +409,8 @@ internal fun VerticalReader(
     onFragmentConsumed: () -> Unit,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
+    activeSentence: TtsSentenceLocator? = null,
+    onManualNavigation: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val textStyle = readerTextStyle(settings, palette.foreground)
@@ -345,6 +423,7 @@ internal fun VerticalReader(
     val nestedScrollConnection = remember(pullState, listState, hasPreviousChapter, hasNextChapter) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) onManualNavigation()
                 val consumed = pullState.consumePreScroll(
                     deltaY = available.y,
                     isUserInput = source == NestedScrollSource.UserInput,
@@ -435,8 +514,8 @@ internal fun VerticalReader(
                     armed = pullState.edge == ChapterPullEdge.PREVIOUS && pullState.isArmed,
                 )
             }
-            itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { _, block ->
-                ReaderBlockView(block, textStyle, palette)
+            itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { blockIndex, block ->
+                ReaderBlockView(blockIndex, block, textStyle, palette, activeSentence)
             }
             item(key = "next-chapter") {
                 ChapterNavigation(
@@ -468,6 +547,8 @@ internal fun PagedReader(
     onFragmentConsumed: () -> Unit,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
+    activeSentence: TtsSentenceLocator? = null,
+    onManualNavigation: () -> Unit = {},
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -518,6 +599,15 @@ internal fun PagedReader(
                 pages.getOrNull(page)?.let { onProgress(it.startProgress) }
             }
         }
+        LaunchedEffect(activeSentence, pages) {
+            val sentence = activeSentence ?: return@LaunchedEffect
+            val targetPage = pages.indexOfFirst { page ->
+                page.items.filterIsInstance<ReaderPageItem.Text>().any { item ->
+                    item.blockIndex == sentence.blockIndex && sentence.startOffset in item.startOffset until item.endOffset
+                }
+            }
+            if (targetPage >= 0 && targetPage != pagerState.currentPage) pagerState.animateScrollToPage(targetPage)
+        }
 
         HorizontalPager(
             state = pagerState,
@@ -528,10 +618,12 @@ internal fun PagedReader(
                     onTap = { position ->
                         when {
                             position.x < size.width * 0.32f -> scope.launch {
+                                onManualNavigation()
                                 if (pagerState.currentPage > 0) pagerState.animateScrollToPage(pagerState.currentPage - 1)
                                 else if (hasPreviousChapter) onPreviousChapter()
                             }
                             position.x > size.width * 0.68f -> scope.launch {
+                                onManualNavigation()
                                 if (pagerState.currentPage < pages.lastIndex) pagerState.animateScrollToPage(pagerState.currentPage + 1)
                                 else if (hasNextChapter) onNextChapter()
                             }
@@ -540,6 +632,7 @@ internal fun PagedReader(
                     },
                     onSwipePastStart = { if (hasPreviousChapter) onPreviousChapter() },
                     onSwipePastEnd = { if (hasNextChapter) onNextChapter() },
+                    onUserSwipe = onManualNavigation,
                 )
             },
         ) { pageIndex ->
@@ -549,12 +642,16 @@ internal fun PagedReader(
             ) {
                 pages[pageIndex].items.forEach { item ->
                     when (item) {
-                        is ReaderPageItem.Text -> Text(
-                            text = item.text,
+                        is ReaderPageItem.Text -> {
+                            val activeRange = activeRangeInSlice(activeSentence, item)
+                            Text(
+                            text = highlightedText(item.text, activeRange, palette),
                             style = textStyle,
                             color = palette.foreground,
-                            modifier = Modifier.height(with(density) { item.heightPx.toDp() }),
-                        )
+                            modifier = Modifier.height(with(density) { item.heightPx.toDp() })
+                                .semantics { selected = activeRange != null },
+                            )
+                        }
                         is ReaderPageItem.Image -> ReaderImage(
                             image = item.block,
                             palette = palette,
@@ -573,6 +670,7 @@ private suspend fun PointerInputScope.detectHorizontalReaderGestures(
     onTap: (Offset) -> Unit,
     onSwipePastStart: () -> Unit,
     onSwipePastEnd: () -> Unit,
+    onUserSwipe: () -> Unit,
 ) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
@@ -588,6 +686,7 @@ private suspend fun PointerInputScope.detectHorizontalReaderGestures(
         } while (pressed)
         val delta = endPosition - startPosition
         val threshold = viewConfiguration.touchSlop * 3
+        if (abs(delta.x) > viewConfiguration.touchSlop || abs(delta.y) > viewConfiguration.touchSlop) onUserSwipe()
         when {
             abs(delta.x) < viewConfiguration.touchSlop && abs(delta.y) < viewConfiguration.touchSlop -> onTap(endPosition)
             abs(delta.x) > threshold && abs(delta.x) > abs(delta.y) && delta.x > 0 && startPage == 0 -> onSwipePastStart()
@@ -597,10 +696,67 @@ private suspend fun PointerInputScope.detectHorizontalReaderGestures(
 }
 
 @Composable
-private fun ReaderBlockView(block: ReaderBlock, textStyle: TextStyle, palette: ReaderPalette) {
+private fun ReaderBlockView(
+    blockIndex: Int,
+    block: ReaderBlock,
+    textStyle: TextStyle,
+    palette: ReaderPalette,
+    activeSentence: TtsSentenceLocator?,
+) {
     when (block) {
-        is ReaderBlock.Text -> Text(block.text, style = textStyle, color = palette.foreground)
+        is ReaderBlock.Text -> ReaderTextBlock(blockIndex, block.text, textStyle, palette, activeSentence)
         is ReaderBlock.Image -> ReaderImage(block, palette)
+    }
+}
+
+@Composable
+private fun ReaderTextBlock(
+    blockIndex: Int,
+    text: String,
+    textStyle: TextStyle,
+    palette: ReaderPalette,
+    activeSentence: TtsSentenceLocator?,
+) {
+    val range = activeSentence
+        ?.takeIf { it.blockIndex == blockIndex }
+        ?.let { it.startOffset.coerceIn(0, text.length) until it.endOffset.coerceIn(0, text.length) }
+        ?.takeUnless { it.isEmpty() }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    LaunchedEffect(range, layoutResult) {
+        val activeRange = range ?: return@LaunchedEffect
+        val layout = layoutResult ?: return@LaunchedEffect
+        val first = layout.getBoundingBox(activeRange.first)
+        val last = layout.getBoundingBox(activeRange.last)
+        bringIntoViewRequester.bringIntoView(
+            Rect(0f, first.top, layout.size.width.toFloat(), last.bottom),
+        )
+    }
+    Text(
+        text = highlightedText(text, range, palette),
+        style = textStyle,
+        color = palette.foreground,
+        onTextLayout = { layoutResult = it },
+        modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester)
+            .semantics { selected = range != null },
+    )
+}
+
+private fun activeRangeInSlice(sentence: TtsSentenceLocator?, item: ReaderPageItem.Text): IntRange? {
+    if (sentence == null || sentence.blockIndex != item.blockIndex) return null
+    val start = maxOf(sentence.startOffset, item.startOffset)
+    val end = minOf(sentence.endOffset, item.endOffset)
+    return if (start < end) (start - item.startOffset) until (end - item.startOffset) else null
+}
+
+private fun highlightedText(text: String, range: IntRange?, palette: ReaderPalette): AnnotatedString = buildAnnotatedString {
+    append(text)
+    if (range != null && !range.isEmpty()) {
+        addStyle(
+            SpanStyle(background = palette.foreground.copy(alpha = 0.18f)),
+            range.first.coerceIn(0, text.length),
+            (range.last + 1).coerceIn(0, text.length),
+        )
     }
 }
 

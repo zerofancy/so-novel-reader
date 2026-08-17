@@ -1,5 +1,8 @@
 package top.ntutn.sonovelreader.ui
 
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,23 +12,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import top.ntutn.sonovelreader.data.ReaderSettings
 import top.ntutn.sonovelreader.data.ReaderTheme
 import top.ntutn.sonovelreader.data.ReadingMode
+import top.ntutn.sonovelreader.tts.TtsVoiceCatalogState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,12 +51,20 @@ fun SettingsScreen(
     onLineHeightChange: (Float) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
     onKeepScreenOnChange: (Boolean) -> Unit,
+    ttsVoices: TtsVoiceCatalogState,
+    onTtsRateChange: (Float) -> Unit,
+    onTtsPitchChange: (Float) -> Unit,
+    onTtsVoiceChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    var rate by remember(settings.ttsRate) { mutableFloatStateOf(settings.ttsRate) }
+    var pitch by remember(settings.ttsPitch) { mutableFloatStateOf(settings.ttsPitch) }
+    var voiceMenuExpanded by remember { mutableStateOf(false) }
     Column(modifier.fillMaxSize()) {
         TopAppBar(title = { Text("阅读设置", fontWeight = FontWeight.SemiBold) })
         Column(
-            Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingTitle("阅读方式")
@@ -98,6 +121,65 @@ fun SettingsScreen(
                 }
                 Switch(checked = settings.keepScreenOn, onCheckedChange = onKeepScreenOnChange)
             }
+            HorizontalDivider()
+            SettingTitle("朗读语速  ${"%.1f".format(rate)}×")
+            Slider(
+                value = rate,
+                onValueChange = { rate = (it * 10).roundToInt() / 10f },
+                onValueChangeFinished = { onTtsRateChange(rate) },
+                valueRange = 0.5f..2f,
+                steps = 14,
+            )
+            SettingTitle("朗读音调  ${"%.1f".format(pitch)}×")
+            Slider(
+                value = pitch,
+                onValueChange = { pitch = (it * 10).roundToInt() / 10f },
+                onValueChangeFinished = { onTtsPitchChange(pitch) },
+                valueRange = 0.5f..2f,
+                steps = 14,
+            )
+            SettingTitle("系统语音")
+            Box {
+                val selectedVoice = ttsVoices.voices.firstOrNull { it.name == settings.ttsVoiceName }
+                OutlinedButton(
+                    onClick = { voiceMenuExpanded = true },
+                    enabled = !ttsVoices.loading && ttsVoices.voices.isNotEmpty(),
+                ) {
+                    Text(
+                        when {
+                            ttsVoices.loading -> "正在读取系统语音…"
+                            selectedVoice != null -> selectedVoice.label
+                            settings.ttsVoiceName != null -> "语音已不可用 · 自动匹配"
+                            else -> "自动匹配（推荐）"
+                        },
+                    )
+                }
+                DropdownMenu(expanded = voiceMenuExpanded, onDismissRequest = { voiceMenuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text("自动匹配（推荐）") },
+                        onClick = {
+                            onTtsVoiceChange(null)
+                            voiceMenuExpanded = false
+                        },
+                    )
+                    ttsVoices.voices.forEach { voice ->
+                        DropdownMenuItem(
+                            text = { Text(voice.label) },
+                            onClick = {
+                                onTtsVoiceChange(voice.name)
+                                voiceMenuExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+            ttsVoices.error?.let { error ->
+                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(
+                    onClick = { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)) },
+                ) { Text("安装系统语音数据") }
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
