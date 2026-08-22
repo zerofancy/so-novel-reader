@@ -38,7 +38,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
@@ -103,6 +103,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -216,11 +217,13 @@ fun ReaderScreen(
                 val onPreviousChapter = {
                     viewModel.stopTtsForManualNavigation()
                     pendingFragment = null
+                    jumpToken++
                     viewModel.goToChapter(locator.chapterIndex - 1, 1f)
                 }
                 val onNextChapter = {
                     viewModel.stopTtsForManualNavigation()
                     pendingFragment = null
+                    jumpToken++
                     viewModel.goToChapter(locator.chapterIndex + 1, 0f)
                 }
 
@@ -238,6 +241,7 @@ fun ReaderScreen(
                         content = content,
                         settings = state.settings,
                         palette = palette,
+                        chapterTitle = chapter.title,
                         initialFraction = locator.chapterFraction,
                         fragment = pendingFragment,
                         jumpToken = jumpToken,
@@ -256,6 +260,7 @@ fun ReaderScreen(
                         content = content,
                         settings = state.settings,
                         palette = palette,
+                        chapterTitle = chapter.title,
                         initialFraction = locator.chapterFraction,
                         fragment = pendingFragment,
                         jumpToken = jumpToken,
@@ -313,8 +318,11 @@ fun ReaderScreen(
                         contentColor = palette.foreground,
                     ) {
                         IconButton(
-                            onClick = { viewModel.goToChapter(locator.chapterIndex - 1, 1f) },
-                            enabled = locator.chapterIndex > 0,
+                            onClick = {
+                                    jumpToken++
+                                    viewModel.goToChapter(locator.chapterIndex - 1, 1f)
+                                },
+                                enabled = locator.chapterIndex > 0,
                         ) { Icon(Icons.Default.ChevronLeft, contentDescription = "上一章") }
                         Spacer(Modifier.weight(1f))
                         Text("${locator.chapterIndex + 1} / ${book.chapters.size}", style = MaterialTheme.typography.labelLarge)
@@ -349,8 +357,11 @@ fun ReaderScreen(
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(
-                            onClick = { viewModel.goToChapter(locator.chapterIndex + 1, 0f) },
-                            enabled = locator.chapterIndex < book.chapters.lastIndex,
+                            onClick = {
+                                    jumpToken++
+                                    viewModel.goToChapter(locator.chapterIndex + 1, 0f)
+                                },
+                                enabled = locator.chapterIndex < book.chapters.lastIndex,
                         ) { Icon(Icons.Default.ChevronRight, contentDescription = "下一章") }
                     }
                 }
@@ -399,6 +410,7 @@ internal fun VerticalReader(
     content: ReaderContent,
     settings: ReaderSettings,
     palette: ReaderPalette,
+    chapterTitle: String,
     initialFraction: Float,
     fragment: String?,
     jumpToken: Int,
@@ -473,15 +485,15 @@ internal fun VerticalReader(
 
     LaunchedEffect(content, jumpToken) {
         val target = fragment?.let(content.anchors::get) ?: content.positionAt(initialFraction)
-        listState.scrollToItem((target.blockIndex + 1).coerceAtLeast(0))
+        listState.scrollToItem((target.blockIndex + 2).coerceAtLeast(0))
         if (fragment != null) onFragmentConsumed()
     }
     LaunchedEffect(content, listState) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 1..content.blocks.size }
+            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 2..content.blocks.size + 1 }
         }.distinctUntilChanged().collect { visible ->
             if (visible != null) {
-                val blockIndex = visible.index - 1
+                val blockIndex = visible.index - 2
                 val inside = (-visible.offset).toFloat().div(visible.size.coerceAtLeast(1)).coerceIn(0f, 1f)
                 onProgress(content.progressAt(blockIndex, inside))
             }
@@ -500,7 +512,7 @@ internal fun VerticalReader(
                     }
                 },
             contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
             overscrollEffect = null,
         ) {
             item(key = "previous-chapter") {
@@ -512,6 +524,14 @@ internal fun VerticalReader(
                     edge = ChapterPullEdge.PREVIOUS,
                     pullProgress = if (pullState.edge == ChapterPullEdge.PREVIOUS) pullState.progress else 0f,
                     armed = pullState.edge == ChapterPullEdge.PREVIOUS && pullState.isArmed,
+                )
+            }
+            item(key = "chapter-title") {
+                Text(
+                    text = chapterTitle,
+                    fontSize = (settings.fontSizeSp * 1.3f).sp,
+                    fontWeight = FontWeight.Bold,
+                    color = palette.foreground,
                 )
             }
             itemsIndexed(content.blocks, key = { index, _ -> "block-$index" }) { blockIndex, block ->
@@ -537,6 +557,7 @@ internal fun PagedReader(
     content: ReaderContent,
     settings: ReaderSettings,
     palette: ReaderPalette,
+    chapterTitle: String,
     initialFraction: Float,
     fragment: String?,
     jumpToken: Int,
@@ -556,7 +577,7 @@ internal fun PagedReader(
         val textStyle = readerTextStyle(settings, palette.foreground)
         val widthPx = with(density) { (maxWidth - 44.dp).roundToPx().coerceAtLeast(1) }
         val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
-        val spacingPx = with(density) { 14.dp.roundToPx() }
+        val spacingPx = with(density) { settings.paragraphSpacingDp.dp.roundToPx() }
         val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
         val pages = remember(content, widthPx, heightPx, spacingPx, textStyle, textMeasurer) {
             paginateReaderContent(content, widthPx, heightPx, spacingPx) { text, availableWidth, availableHeight ->
@@ -580,10 +601,12 @@ internal fun PagedReader(
         val targetProgress = fragment?.let(content.anchors::get)?.let {
             content.progressAt(it.blockIndex, it.fractionInBlock)
         } ?: initialFraction
-        val pagerState = rememberPagerState(
-            initialPage = pages.pageForProgress(targetProgress),
-            pageCount = pages::size,
-        )
+        val pagerState = remember(content, jumpToken) {
+            PagerState(
+                currentPage = pages.pageForProgress(targetProgress),
+                pageCount = pages::size,
+            )
+        }
         val scope = rememberCoroutineScope()
         var restored by remember(content) { mutableStateOf(false) }
 
@@ -638,8 +661,16 @@ internal fun PagedReader(
         ) { pageIndex ->
             Column(
                 Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
             ) {
+                if (pageIndex == 0) {
+                    Text(
+                        text = chapterTitle,
+                        fontSize = (settings.fontSizeSp * 1.3f).sp,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.foreground,
+                    )
+                }
                 pages[pageIndex].items.forEach { item ->
                     when (item) {
                         is ReaderPageItem.Text -> {
@@ -883,6 +914,7 @@ private fun readerTextStyle(settings: ReaderSettings, color: Color) = TextStyle(
     color = color,
     fontSize = settings.fontSizeSp.sp,
     lineHeight = (settings.fontSizeSp * settings.lineHeight).sp,
+    textIndent = if (settings.firstLineIndent) TextIndent(firstLine = (settings.fontSizeSp * 2).sp) else null,
 )
 
 internal data class ReaderPalette(

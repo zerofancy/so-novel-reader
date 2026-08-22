@@ -165,6 +165,8 @@ fun SoNovelReaderApp(
                     onModeChange = settingsViewModel::setMode,
                     onFontSizeChange = settingsViewModel::setFontSize,
                     onLineHeightChange = settingsViewModel::setLineHeight,
+                    onFirstLineIndentChange = settingsViewModel::setFirstLineIndent,
+                    onParagraphSpacingChange = settingsViewModel::setParagraphSpacing,
                     onThemeChange = settingsViewModel::setTheme,
                     onKeepScreenOnChange = settingsViewModel::setKeepScreenOn,
                     ttsVoices = ttsVoices,

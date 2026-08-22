@@ -10,7 +10,9 @@ enum class ReaderTheme { SYSTEM, LIGHT, DARK, SEPIA }
 data class ReaderSettings(
     val readingMode: ReadingMode = ReadingMode.SCROLL,
     val fontSizeSp: Int = 20,
-    val lineHeight: Float = 1.7f,
+    val lineHeight: Float = 1.5f,
+    val firstLineIndent: Boolean = true,
+    val paragraphSpacingDp: Int = 24,
     val theme: ReaderTheme = ReaderTheme.SYSTEM,
     val keepScreenOn: Boolean = false,
     val ttsRate: Float = 1f,

@@ -103,6 +103,8 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setMode(value: ReadingMode) = viewModelScope.launch { container.settingsRepository.setReadingMode(value) }
     fun setFontSize(value: Int) = viewModelScope.launch { container.settingsRepository.setFontSize(value) }
     fun setLineHeight(value: Float) = viewModelScope.launch { container.settingsRepository.setLineHeight(value) }
+    fun setFirstLineIndent(value: Boolean) = viewModelScope.launch { container.settingsRepository.setFirstLineIndent(value) }
+    fun setParagraphSpacing(value: Int) = viewModelScope.launch { container.settingsRepository.setParagraphSpacing(value) }
     fun setTheme(value: ReaderTheme) = viewModelScope.launch { container.settingsRepository.setTheme(value) }
     fun setKeepScreenOn(value: Boolean) = viewModelScope.launch { container.settingsRepository.setKeepScreenOn(value) }
     fun setTtsRate(value: Float) = updateTtsSettings(settings.value.copy(ttsRate = value.coerceIn(0.5f, 2f))) {

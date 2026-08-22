@@ -18,6 +18,8 @@ class SettingsRepository(private val context: Context) {
         val mode = stringPreferencesKey("reading_mode")
         val fontSize = intPreferencesKey("font_size_sp")
         val lineHeight = floatPreferencesKey("line_height")
+        val firstLineIndent = booleanPreferencesKey("first_line_indent")
+        val paragraphSpacing = intPreferencesKey("paragraph_spacing_dp")
         val theme = stringPreferencesKey("reader_theme")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val ttsRate = floatPreferencesKey("tts_rate")
@@ -30,6 +32,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setReadingMode(value: ReadingMode) = update(Keys.mode, value.name)
     suspend fun setFontSize(value: Int) = update(Keys.fontSize, value.coerceIn(14, 32))
     suspend fun setLineHeight(value: Float) = update(Keys.lineHeight, value.coerceIn(1.2f, 2.2f))
+    suspend fun setFirstLineIndent(value: Boolean) = update(Keys.firstLineIndent, value)
+    suspend fun setParagraphSpacing(value: Int) = update(Keys.paragraphSpacing, value.coerceIn(4, 48))
     suspend fun setTheme(value: ReaderTheme) = update(Keys.theme, value.name)
     suspend fun setKeepScreenOn(value: Boolean) = update(Keys.keepScreenOn, value)
     suspend fun setTtsRate(value: Float) = update(Keys.ttsRate, value.coerceIn(0.5f, 2f))
@@ -47,7 +51,9 @@ class SettingsRepository(private val context: Context) {
     private fun decode(preferences: Preferences): ReaderSettings = ReaderSettings(
         readingMode = preferences[Keys.mode].toEnumOrDefault(ReadingMode.SCROLL),
         fontSizeSp = (preferences[Keys.fontSize] ?: 20).coerceIn(14, 32),
-        lineHeight = (preferences[Keys.lineHeight] ?: 1.7f).coerceIn(1.2f, 2.2f),
+        lineHeight = (preferences[Keys.lineHeight] ?: 1.5f).coerceIn(1.2f, 2.2f),
+        firstLineIndent = preferences[Keys.firstLineIndent] ?: true,
+        paragraphSpacingDp = (preferences[Keys.paragraphSpacing] ?: 24).coerceIn(4, 48),
         theme = preferences[Keys.theme].toEnumOrDefault(ReaderTheme.SYSTEM),
         keepScreenOn = preferences[Keys.keepScreenOn] ?: false,
         ttsRate = (preferences[Keys.ttsRate] ?: 1f).coerceIn(0.5f, 2f),

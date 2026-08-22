@@ -49,6 +49,8 @@ fun SettingsScreen(
     onModeChange: (ReadingMode) -> Unit,
     onFontSizeChange: (Int) -> Unit,
     onLineHeightChange: (Float) -> Unit,
+    onFirstLineIndentChange: (Boolean) -> Unit,
+    onParagraphSpacingChange: (Int) -> Unit,
     onThemeChange: (ReaderTheme) -> Unit,
     onKeepScreenOnChange: (Boolean) -> Unit,
     ttsVoices: TtsVoiceCatalogState,
@@ -94,6 +96,30 @@ fun SettingsScreen(
                 onValueChange = { onLineHeightChange((it * 10).roundToInt() / 10f) },
                 valueRange = 1.2f..2.2f,
                 steps = 9,
+            )
+            HorizontalDivider()
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("首行缩进", fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "首行缩进两个汉字宽度",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = settings.firstLineIndent, onCheckedChange = onFirstLineIndentChange)
+            }
+            HorizontalDivider()
+            SettingTitle("段间距  ${settings.paragraphSpacingDp} dp")
+            Slider(
+                value = settings.paragraphSpacingDp.toFloat(),
+                onValueChange = { onParagraphSpacingChange(it.roundToInt()) },
+                valueRange = 4f..48f,
+                steps = 21,
             )
             HorizontalDivider()
             SettingTitle("阅读主题")
