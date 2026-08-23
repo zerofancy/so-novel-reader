@@ -8,9 +8,15 @@ import top.ntutn.sonovelreader.data.SettingsRepository
 import top.ntutn.sonovelreader.data.local.LibraryDatabase
 import top.ntutn.sonovelreader.tts.SystemTtsVoiceCatalog
 import top.ntutn.sonovelreader.tts.TtsPlaybackManager
+import timber.log.Timber
 
 class SoNovelReaderApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        Timber.plant(Timber.DebugTree())
+    }
 }
 
 class AppContainer(application: Application) {

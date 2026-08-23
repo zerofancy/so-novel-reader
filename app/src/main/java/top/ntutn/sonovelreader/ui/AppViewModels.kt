@@ -237,18 +237,6 @@ class ReaderViewModel(
         }
     }
 
-    fun stopTtsForManualNavigation() {
-        val playback = mutableState.value.ttsPlayback
-        if (playback.bookId == bookId && playback.status in setOf(
-                TtsPlaybackStatus.PREPARING,
-                TtsPlaybackStatus.PLAYING,
-                TtsPlaybackStatus.PAUSED,
-            )
-        ) {
-            container.ttsPlaybackManager.stop()
-        }
-    }
-
     private fun loadChapter(book: ParsedBook, index: Int) {
         val chapter = book.chapters[index]
         chapterJob?.cancel()

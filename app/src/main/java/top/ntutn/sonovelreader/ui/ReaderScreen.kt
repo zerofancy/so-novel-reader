@@ -152,6 +152,10 @@ fun ReaderScreen(
     val playback = state.ttsPlayback
     val activeSentence = playback.activeSentence
         ?.takeIf { playback.bookId == state.parsedBook?.book?.id && playback.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PAUSED) }
+    var followSuspended by remember { mutableStateOf(false) }
+    LaunchedEffect(playback.bookId, playback.status) {
+        if (playback.status == TtsPlaybackStatus.PREPARING) followSuspended = false
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) onMessage("未授予通知权限，后台朗读控制可能不会显示在通知栏")
         viewModel.toggleTts()
@@ -215,20 +219,29 @@ fun ReaderScreen(
                 val content = state.content!!
                 val chapter = book.chapters[locator.chapterIndex.coerceIn(book.chapters.indices)]
                 val onPreviousChapter = {
-                    viewModel.stopTtsForManualNavigation()
+                    followSuspended = true
                     pendingFragment = null
                     jumpToken++
                     viewModel.goToChapter(locator.chapterIndex - 1, 1f)
                 }
                 val onNextChapter = {
-                    viewModel.stopTtsForManualNavigation()
+                    followSuspended = true
                     pendingFragment = null
                     jumpToken++
                     viewModel.goToChapter(locator.chapterIndex + 1, 0f)
                 }
 
-                LaunchedEffect(activeSentence?.locator, content, locator.chapterIndex) {
+                LaunchedEffect(activeSentence?.locator, content, locator.chapterIndex, followSuspended) {
                     val sentence = activeSentence ?: return@LaunchedEffect
+                    if (followSuspended) {
+                        // 智能让出：等朗读进度追上用户当前阅读位置再恢复自动跟随
+                        if (sentence.locator.chapterIndex == locator.chapterIndex &&
+                            content.progressAt(sentence) >= locator.chapterFraction
+                        ) {
+                            followSuspended = false
+                        }
+                        return@LaunchedEffect
+                    }
                     when {
                         sentence.locator.chapterIndex != locator.chapterIndex ->
                             viewModel.goToChapter(sentence.locator.chapterIndex, 0f)
@@ -252,8 +265,8 @@ fun ReaderScreen(
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
-                        activeSentence = activeSentence?.locator,
-                        onManualNavigation = viewModel::stopTtsForManualNavigation,
+                        activeSentence = if (followSuspended) null else activeSentence?.locator,
+                        onManualNavigation = { followSuspended = true },
                     )
                 } else {
                     PagedReader(
@@ -271,8 +284,8 @@ fun ReaderScreen(
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
-                        activeSentence = activeSentence?.locator,
-                        onManualNavigation = viewModel::stopTtsForManualNavigation,
+                        activeSentence = if (followSuspended) null else activeSentence?.locator,
+                        onManualNavigation = { followSuspended = true },
                     )
                 }
 
@@ -318,11 +331,8 @@ fun ReaderScreen(
                         contentColor = palette.foreground,
                     ) {
                         IconButton(
-                            onClick = {
-                                    jumpToken++
-                                    viewModel.goToChapter(locator.chapterIndex - 1, 1f)
-                                },
-                                enabled = locator.chapterIndex > 0,
+                            onClick = onPreviousChapter,
+                            enabled = locator.chapterIndex > 0,
                         ) { Icon(Icons.Default.ChevronLeft, contentDescription = "上一章") }
                         Spacer(Modifier.weight(1f))
                         Text("${locator.chapterIndex + 1} / ${book.chapters.size}", style = MaterialTheme.typography.labelLarge)
@@ -357,11 +367,8 @@ fun ReaderScreen(
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(
-                            onClick = {
-                                    jumpToken++
-                                    viewModel.goToChapter(locator.chapterIndex + 1, 0f)
-                                },
-                                enabled = locator.chapterIndex < book.chapters.lastIndex,
+                            onClick = onNextChapter,
+                            enabled = locator.chapterIndex < book.chapters.lastIndex,
                         ) { Icon(Icons.Default.ChevronRight, contentDescription = "下一章") }
                     }
                 }
@@ -386,7 +393,7 @@ fun ReaderScreen(
                                         onClick = {
                                             val index = book.chapters.indexOfFirst { it.href == item.href }
                                             if (index >= 0) {
-                                                viewModel.stopTtsForManualNavigation()
+                                                followSuspended = true
                                                 pendingFragment = item.fragment
                                                 jumpToken++
                                                 viewModel.goToChapter(index, 0f)
@@ -432,10 +439,11 @@ internal fun VerticalReader(
     val pullState = remember(content, hasPreviousChapter, hasNextChapter, thresholdPx, maxDistancePx) {
         ChapterPullState(thresholdPx, maxDistancePx)
     }
+    val userDragging = remember { mutableStateOf(false) }
     val nestedScrollConnection = remember(pullState, listState, hasPreviousChapter, hasNextChapter) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y != 0f) onManualNavigation()
+                if (userDragging.value && source == NestedScrollSource.UserInput && available.y != 0f) onManualNavigation()
                 val consumed = pullState.consumePreScroll(
                     deltaY = available.y,
                     isUserInput = source == NestedScrollSource.UserInput,
@@ -509,6 +517,20 @@ internal fun VerticalReader(
                 .pointerInput(onToggleControls) {
                     detectTapGestures { position ->
                         if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
+                    }
+                }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        userDragging.value = true
+                        try {
+                            do {
+                                val event = awaitPointerEvent(PointerEventPass.Final)
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                            } while (change?.pressed == true)
+                        } finally {
+                            userDragging.value = false
+                        }
                     }
                 },
             contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),

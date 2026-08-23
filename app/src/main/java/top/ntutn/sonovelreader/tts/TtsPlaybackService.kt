@@ -40,6 +40,7 @@ import top.ntutn.sonovelreader.data.ParsedBook
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReaderSettings
+import timber.log.Timber
 
 class TtsPlaybackService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -58,6 +59,7 @@ class TtsPlaybackService : Service() {
     private var sentences: List<TtsSentence> = emptyList()
     private var sentenceIndex = 0
     private var currentUtteranceId: String? = null
+    private var consecutiveErrors = 0
     private var settings = ReaderSettings()
     private var resumeAfterFocusGain = false
     private var foregroundStarted = false
@@ -89,11 +91,19 @@ class TtsPlaybackService : Service() {
             })
             isActive = true
         }
-        tts = TextToSpeech(applicationContext) { status -> ttsReady.complete(status) }.apply {
+        tts = TextToSpeech(applicationContext) { status ->
+            Timber.i("TTS 引擎初始化 status=%d", status)
+            ttsReady.complete(status)
+        }.apply {
             setAudioAttributes(audioAttributes)
             setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
-                    scope.launch { if (utteranceId == currentUtteranceId) saveCurrentProgress() }
+                    scope.launch {
+                        if (utteranceId == currentUtteranceId) {
+                            consecutiveErrors = 0
+                            saveCurrentProgress()
+                        }
+                    }
                 }
 
                 override fun onDone(utteranceId: String?) {
@@ -106,12 +116,17 @@ class TtsPlaybackService : Service() {
                 }
 
                 @Deprecated("Deprecated by Android")
-                override fun onError(utteranceId: String?) {
-                    scope.launch { if (utteranceId == currentUtteranceId) fail("系统 TTS 朗读失败") }
-                }
+                override fun onError(utteranceId: String?) = onError(utteranceId, -1)
 
                 override fun onError(utteranceId: String?, errorCode: Int) {
-                    scope.launch { if (utteranceId == currentUtteranceId) fail("系统 TTS 朗读失败（$errorCode）") }
+                    scope.launch {
+                        if (utteranceId != currentUtteranceId) {
+                            Timber.w("忽略过期的 TTS 错误 utteranceId=%s errorCode=%d", utteranceId, errorCode)
+                            return@launch
+                        }
+                        currentUtteranceId = null
+                        handleSynthesisFailure("引擎错误", errorCode)
+                    }
                 }
             })
         }
@@ -125,6 +140,7 @@ class TtsPlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Timber.i("onStartCommand action=%s", intent?.action)
         when (intent?.action) {
             ACTION_PLAY -> {
                 settings = intent.readSettings(settings)
@@ -140,7 +156,10 @@ class TtsPlaybackService : Service() {
                 ensureForeground(manager.state.value)
                 resumePlayback()
             }
-            ACTION_STOP -> stopPlayback(TtsPlaybackStatus.IDLE)
+            ACTION_STOP -> {
+                Timber.i("收到 STOP 来源=%s", intent.getStringExtra(EXTRA_SOURCE) ?: "App内部")
+                stopPlayback(TtsPlaybackStatus.IDLE)
+            }
             ACTION_UPDATE_SETTINGS -> {
                 settings = intent.readSettings(settings)
                 if (manager.state.value.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PAUSED)) {
@@ -172,8 +191,10 @@ class TtsPlaybackService : Service() {
         content = null
         sentences = emptyList()
         sentenceIndex = 0
+        Timber.i("开始朗读 bookId=%s chapter=%d fraction=%f", requestedBookId, requestedChapter, requestedFraction)
         publish(TtsPlaybackStatus.PREPARING, requestedBookId = requestedBookId, sentence = null)
         if (ttsReady.await() != TextToSpeech.SUCCESS) {
+            Timber.w("TTS 未就绪，初始化失败")
             fail("系统 TTS 初始化失败，请检查语音引擎")
             return
         }
@@ -198,6 +219,7 @@ class TtsPlaybackService : Service() {
         content = container.bookRepository.readChapter(parsedBook, parsedBook.chapters[index])
         sentences = segmentChapter(checkNotNull(content), index, TextToSpeech.getMaxSpeechInputLength())
         sentenceIndex = 0
+        Timber.i("加载章节 index=%d 句子数=%d", index, sentences.size)
     }
 
     private suspend fun speakCurrentOrAdvance() {
@@ -225,6 +247,7 @@ class TtsPlaybackService : Service() {
     private fun speakCurrent() {
         val sentence = sentences.getOrNull(sentenceIndex) ?: return
         if (audioManager.requestAudioFocus(audioFocusRequest) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            Timber.w("无法获取音频焦点")
             publish(TtsPlaybackStatus.PAUSED, error = "其他应用正在使用音频")
             return
         }
@@ -233,9 +256,12 @@ class TtsPlaybackService : Service() {
         tts.setPitch(settings.ttsPitch.coerceIn(0.5f, 2f))
         val utteranceId = UUID.randomUUID().toString()
         currentUtteranceId = utteranceId
+        Timber.d("朗读 sentenceIndex=%d 句子=[%s]", sentenceIndex, sentence.text)
         publish(TtsPlaybackStatus.PLAYING, sentence = sentence)
         if (tts.speak(sentence.text, TextToSpeech.QUEUE_FLUSH, null, utteranceId) == TextToSpeech.ERROR) {
-            fail("系统 TTS 无法朗读当前文本")
+            Timber.w("tts.speak 同步返回 ERROR utteranceId=%s", utteranceId)
+            currentUtteranceId = null
+            handleSynthesisFailure("朗读请求被拒绝")
         }
     }
 
@@ -252,14 +278,24 @@ class TtsPlaybackService : Service() {
             .sortedBy { it.isNetworkConnectionRequired }
             .firstOrNull()
         when {
-            selected != null -> tts.voice = selected
-            automatic != null -> tts.voice = automatic
-            else -> tts.language = automaticLocale
+            selected != null -> {
+                tts.voice = selected
+                Timber.d("使用指定语音 name=%s", selected.name)
+            }
+            automatic != null -> {
+                tts.voice = automatic
+                Timber.d("使用自动匹配语音 name=%s locale=%s", automatic.name, automatic.locale)
+            }
+            else -> {
+                tts.language = automaticLocale
+                Timber.d("回退到语言 locale=%s", automaticLocale)
+            }
         }
     }
 
     private fun pausePlayback(fromFocusLoss: Boolean) {
         if (manager.state.value.status != TtsPlaybackStatus.PLAYING) return
+        Timber.i("暂停朗读 fromFocusLoss=%b", fromFocusLoss)
         resumeAfterFocusGain = fromFocusLoss
         currentUtteranceId = null
         tts.stop()
@@ -269,11 +305,13 @@ class TtsPlaybackService : Service() {
 
     private fun resumePlayback() {
         if (manager.state.value.status != TtsPlaybackStatus.PAUSED) return
+        Timber.i("继续朗读")
         resumeAfterFocusGain = false
         speakCurrent()
     }
 
     private fun stopPlayback(status: TtsPlaybackStatus) {
+        Timber.i("停止朗读 status=%s", status)
         playbackJob?.cancel()
         playbackJob = null
         currentUtteranceId = null
@@ -286,7 +324,26 @@ class TtsPlaybackService : Service() {
         stopSelf()
     }
 
+    private fun handleSynthesisFailure(reason: String, errorCode: Int? = null) {
+        val sentence = sentences.getOrNull(sentenceIndex)
+        Timber.w(
+            "TTS 朗读失败 reason=%s errorCode=%s sentenceIndex=%d 句子=[%s]",
+            reason,
+            errorCode,
+            sentenceIndex,
+            sentence?.text,
+        )
+        consecutiveErrors++
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            fail("连续 $consecutiveErrors 句朗读失败，TTS 引擎不可用")
+            return
+        }
+        sentenceIndex++
+        scope.launch { speakCurrentOrAdvance() }
+    }
+
     private fun fail(message: String) {
+        Timber.w("朗读终止 message=%s", message)
         playbackJob?.cancel()
         playbackJob = null
         currentUtteranceId = null
@@ -299,6 +356,7 @@ class TtsPlaybackService : Service() {
     }
 
     private fun onAudioFocusChanged(change: Int) {
+        Timber.d("音频焦点变化 change=%d", change)
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK,
@@ -410,17 +468,19 @@ class TtsPlaybackService : Service() {
                 Notification.Action.Builder(
                     Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel),
                     "停止",
-                    servicePendingIntent(ACTION_STOP, 3),
+                    servicePendingIntent(ACTION_STOP, 3, source = "notification"),
                 ).build(),
             )
             .setStyle(Notification.MediaStyle().setMediaSession(mediaSession.sessionToken).setShowActionsInCompactView(0, 1))
             .build()
     }
 
-    private fun servicePendingIntent(action: String, requestCode: Int): PendingIntent = PendingIntent.getService(
+    private fun servicePendingIntent(action: String, requestCode: Int, source: String? = null): PendingIntent = PendingIntent.getService(
         this,
         requestCode,
-        Intent(this, TtsPlaybackService::class.java).setAction(action),
+        Intent(this, TtsPlaybackService::class.java).setAction(action).apply {
+            if (source != null) putExtra(EXTRA_SOURCE, source)
+        },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
@@ -448,7 +508,9 @@ class TtsPlaybackService : Service() {
         const val EXTRA_RATE = "rate"
         const val EXTRA_PITCH = "pitch"
         const val EXTRA_VOICE = "voice"
+        const val EXTRA_SOURCE = "source"
         private const val CHANNEL_ID = "tts_playback"
         private const val NOTIFICATION_ID = 2001
+        private const val MAX_CONSECUTIVE_ERRORS = 8
     }
 }

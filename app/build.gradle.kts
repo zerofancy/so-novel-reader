@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.jsoup)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.timber)
     implementation(libs.epub4j.core) {
         exclude(group = "xmlpull")
     }

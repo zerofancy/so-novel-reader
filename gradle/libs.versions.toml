@@ -19,6 +19,7 @@ epub4j = "4.2.3"
 ksp = "2.3.10"
 coroutines = "1.11.0"
 serialization = "1.11.0"
+timber = "5.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -52,6 +53,7 @@ jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 epub4j-core = { group = "io.documentnode", name = "epub4j-core", version.ref = "epub4j" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
