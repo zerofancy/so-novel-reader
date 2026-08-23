@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import top.ntutn.sonovelreader.MainActivity
@@ -41,6 +42,7 @@ import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReaderSettings
 import timber.log.Timber
+import kotlin.time.Duration.Companion.milliseconds
 
 class TtsPlaybackService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -60,6 +62,7 @@ class TtsPlaybackService : Service() {
     private var sentenceIndex = 0
     private var currentUtteranceId: String? = null
     private var consecutiveErrors = 0
+    private var currentSentenceRetries = 0
     private var settings = ReaderSettings()
     private var resumeAfterFocusGain = false
     private var foregroundStarted = false
@@ -101,6 +104,7 @@ class TtsPlaybackService : Service() {
                     scope.launch {
                         if (utteranceId == currentUtteranceId) {
                             consecutiveErrors = 0
+                            currentSentenceRetries = 0
                             saveCurrentProgress()
                         }
                     }
@@ -110,6 +114,7 @@ class TtsPlaybackService : Service() {
                     scope.launch {
                         if (utteranceId == currentUtteranceId) {
                             sentenceIndex++
+                            currentSentenceRetries = 0
                             speakCurrentOrAdvance()
                         }
                     }
@@ -327,17 +332,31 @@ class TtsPlaybackService : Service() {
     private fun handleSynthesisFailure(reason: String, errorCode: Int? = null) {
         val sentence = sentences.getOrNull(sentenceIndex)
         Timber.w(
-            "TTS 朗读失败 reason=%s errorCode=%s sentenceIndex=%d 句子=[%s]",
+            "TTS 朗读失败 reason=%s errorCode=%s sentenceIndex=%d 重试=%d/%d 句子=[%s]",
             reason,
             errorCode,
             sentenceIndex,
+            currentSentenceRetries,
+            MAX_RETRIES_PER_SENTENCE,
             sentence?.text,
         )
+        if (currentSentenceRetries < MAX_RETRIES_PER_SENTENCE) {
+            currentSentenceRetries++
+            Timber.i("重试当前句子 第%d/%d次", currentSentenceRetries, MAX_RETRIES_PER_SENTENCE)
+            scope.launch {
+                delay(RETRY_DELAY_MS.milliseconds)
+                speakCurrentOrAdvance()
+            }
+            return
+        }
+        // 重试上限用尽，跳过当前句
+        currentSentenceRetries = 0
         consecutiveErrors++
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
             fail("连续 $consecutiveErrors 句朗读失败，TTS 引擎不可用")
             return
         }
+        Timber.w("跳过当前句 sentenceIndex=%d", sentenceIndex)
         sentenceIndex++
         scope.launch { speakCurrentOrAdvance() }
     }
@@ -512,5 +531,7 @@ class TtsPlaybackService : Service() {
         private const val CHANNEL_ID = "tts_playback"
         private const val NOTIFICATION_ID = 2001
         private const val MAX_CONSECUTIVE_ERRORS = 8
+        private const val MAX_RETRIES_PER_SENTENCE = 5
+        private const val RETRY_DELAY_MS = 300L
     }
 }
