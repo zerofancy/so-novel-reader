@@ -82,13 +82,12 @@ class TtsNotificationController(
                 .setState(playbackState, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1f)
                 .build(),
         )
-        mediaSession.setMetadata(
-            MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, state.bookTitle ?: "拾光阅读")
-                .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, state.chapterTitle)
-                .putString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION, state.activeSentence?.text)
-                .build(),
-        )
+        val metadataBuilder = MediaMetadata.Builder()
+            .putString(MediaMetadata.METADATA_KEY_TITLE, state.bookTitle ?: "拾光阅读")
+            .putString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE, state.chapterTitle)
+            .putString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION, state.activeSentence?.text)
+        state.coverBitmap?.let { metadataBuilder.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, it) }
+        mediaSession.setMetadata(metadataBuilder.build())
     }
 
     private fun buildNotification(state: TtsPlaybackState): Notification {
@@ -107,7 +106,7 @@ class TtsNotificationController(
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        return Notification.Builder(service, CHANNEL_ID)
+        val builder = Notification.Builder(service, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(state.bookTitle ?: "正在准备朗读")
             .setContentText(state.activeSentence?.text ?: state.chapterTitle ?: "拾光阅读")
@@ -134,7 +133,8 @@ class TtsNotificationController(
                     .setMediaSession(mediaSession.sessionToken)
                     .setShowActionsInCompactView(0, 1),
             )
-            .build()
+        state.coverBitmap?.let { builder.setLargeIcon(it) }
+        return builder.build()
     }
 
     private fun servicePendingIntent(action: String, requestCode: Int, source: String? = null): PendingIntent =

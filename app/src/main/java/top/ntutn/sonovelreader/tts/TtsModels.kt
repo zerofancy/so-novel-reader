@@ -1,5 +1,6 @@
 package top.ntutn.sonovelreader.tts
 
+import android.graphics.Bitmap
 import java.text.BreakIterator
 import java.util.Locale
 import top.ntutn.sonovelreader.data.EMPTY_CHAPTER_TEXT
@@ -27,6 +28,7 @@ data class TtsPlaybackState(
     val chapterTitle: String? = null,
     val activeSentence: TtsSentence? = null,
     val error: String? = null,
+    val coverBitmap: Bitmap? = null,
 )
 
 internal enum class TtsQueueBoundary { SPEAK, NEXT_CHAPTER, COMPLETE }
