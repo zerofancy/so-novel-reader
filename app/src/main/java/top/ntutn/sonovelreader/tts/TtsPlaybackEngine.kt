@@ -1,6 +1,7 @@
 package top.ntutn.sonovelreader.tts
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
@@ -27,6 +28,7 @@ import top.ntutn.sonovelreader.data.ParsedBook
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReaderSettings
+import top.ntutn.sonovelreader.ui.loadBookCoverBitmap
 
 /**
  * 朗读核心：用 [TextToSpeech.synthesizeToFile] 预生成后续句子缓存，
@@ -44,6 +46,7 @@ class TtsPlaybackEngine(
     private var status = TtsPlaybackStatus.IDLE
     private var bookId: String? = null
     private var book: ParsedBook? = null
+    private var coverBitmap: Bitmap? = null
     private var content: ReaderContent? = null
     private var chapterIndex = 0
     private var sentences: List<TtsSentence> = emptyList()
@@ -170,6 +173,7 @@ class TtsPlaybackEngine(
         runCatching { tts.stop() }
         audioFocus.abandon()
         resumeAfterFocusGain = false
+        coverBitmap = null
         clearAllCache()
     }
 
@@ -180,6 +184,7 @@ class TtsPlaybackEngine(
         consecutiveErrors = 0
         bookId = requestedBookId
         book = null
+        coverBitmap = null
         content = null
         sentences = emptyList()
         sentenceIndex = 0
@@ -193,6 +198,7 @@ class TtsPlaybackEngine(
         try {
             val parsedBook = container.bookRepository.openBook(requestedBookId)
             book = parsedBook
+            coverBitmap = loadBookCoverBitmap(parsedBook.book.coverPath, parsedBook.book.title)
             settings = container.settingsRepository.settings.first()
             chapterIndex = requestedChapter.coerceIn(parsedBook.chapters.indices)
             loadChapter(chapterIndex)
@@ -449,6 +455,7 @@ class TtsPlaybackEngine(
                 chapterTitle = parsedBook?.chapters?.getOrNull(chapterIndex)?.title,
                 activeSentence = sentence,
                 error = error,
+                coverBitmap = coverBitmap,
             ),
         )
     }

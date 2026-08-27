@@ -1,5 +1,11 @@
 package top.ntutn.sonovelreader.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.Typeface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
@@ -9,8 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 
@@ -87,3 +96,65 @@ internal fun contrastRatio(first: Color, second: Color): Float {
 
 private fun highestContrastColor(background: Color, first: Color, second: Color): Color =
     if (contrastRatio(background, first) >= contrastRatio(background, second)) first else second
+
+/**
+ * 用 Canvas 绘制与 [GeneratedBookCover] 视觉一致的封面 Bitmap，
+ * 供 Service / 通知 / MediaSession 等非 Compose 场景使用。
+ */
+internal fun generatedCoverBitmap(title: String, widthPx: Int, heightPx: Int): Bitmap {
+    val style = generatedCoverStyle(title)
+    val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    canvas.drawColor(style.background.toArgb())
+
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = style.foreground.toArgb()
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+        textSize = heightPx * 0.4f
+    }
+
+    val bounds = Rect()
+    paint.getTextBounds(style.label, 0, style.label.length, bounds)
+    val x = widthPx / 2f
+    val y = heightPx / 2f - (bounds.top + bounds.bottom) / 2f
+    canvas.drawText(style.label, x, y, paint)
+
+    return bitmap
+}
+
+/**
+ * 加载书籍封面 Bitmap：有真实封面时解码并缩放，无封面时生成默认封面。
+ */
+internal suspend fun loadBookCoverBitmap(
+    coverPath: String?,
+    title: String,
+    sizePx: Int = 512,
+): Bitmap = withContext(Dispatchers.IO) {
+    coverPath?.let { path ->
+        runCatching {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, options)
+            options.inSampleSize = calculateInSampleSize(options, sizePx, sizePx)
+            options.inJustDecodeBounds = false
+            BitmapFactory.decodeFile(path, options)
+        }.getOrNull()
+    } ?: generatedCoverBitmap(title, sizePx, sizePx)
+}
+
+private fun calculateInSampleSize(
+    options: BitmapFactory.Options,
+    reqWidth: Int,
+    reqHeight: Int,
+): Int {
+    val (height, width) = options.outHeight to options.outWidth
+    var inSampleSize = 1
+    if (height > reqHeight || width > reqWidth) {
+        val halfHeight = height / 2
+        val halfWidth = width / 2
+        while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+            inSampleSize *= 2
+        }
+    }
+    return inSampleSize
+}
