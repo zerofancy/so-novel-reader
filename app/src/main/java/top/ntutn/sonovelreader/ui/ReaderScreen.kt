@@ -596,20 +596,36 @@ internal fun PagedReader(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
-        val textStyle = readerTextStyle(settings, palette.foreground)
+        val indentStyle = readerTextStyle(settings, palette.foreground, applyIndent = true)
+        val noIndentStyle = readerTextStyle(settings, palette.foreground, applyIndent = false)
         val widthPx = with(density) { (maxWidth - 44.dp).roundToPx().coerceAtLeast(1) }
         val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
         val spacingPx = with(density) { settings.paragraphSpacingDp.dp.roundToPx() }
         val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
-        val pages = remember(content, widthPx, heightPx, spacingPx, textStyle, textMeasurer) {
-            paginateReaderContent(content, widthPx, heightPx, spacingPx) { text, availableWidth, availableHeight ->
+        val chapterTitleStyle = indentStyle.copy(
+            fontSize = (settings.fontSizeSp * 1.3f).sp,
+            fontWeight = FontWeight.Bold,
+        )
+        val titleReservedPx = remember(chapterTitle, widthPx, chapterTitleStyle, spacingPx) {
+            val layout = textMeasurer.measure(
+                text = AnnotatedString(chapterTitle),
+                style = chapterTitleStyle,
+                overflow = TextOverflow.Clip,
+                softWrap = true,
+                constraints = Constraints(maxWidth = widthPx),
+            )
+            // 标题高度 + 标题与正文之间的段落间距
+            layout.size.height + if (layout.size.height > 0) spacingPx else 0
+        }
+        val pages = remember(content, widthPx, heightPx, spacingPx, indentStyle, noIndentStyle, textMeasurer, titleReservedPx) {
+            paginateReaderContent(content, widthPx, heightPx, spacingPx, firstPageReservedHeightPx = titleReservedPx) { text, availableWidth, availableHeight, isStartOfBlock ->
                 val maxLines = (availableHeight / lineHeightPx).coerceAtLeast(0)
                 if (maxLines == 0) {
                     MeasuredTextSlice(0, 0)
                 } else {
                     val layout = textMeasurer.measure(
                         text = AnnotatedString(text),
-                        style = textStyle,
+                        style = if (isStartOfBlock) indentStyle else noIndentStyle,
                         overflow = TextOverflow.Clip,
                         softWrap = true,
                         maxLines = maxLines,
@@ -699,7 +715,7 @@ internal fun PagedReader(
                             val activeRange = activeRangeInSlice(activeSentence, item)
                             Text(
                             text = highlightedText(item.text, activeRange, palette),
-                            style = textStyle,
+                            style = if (item.startOffset == 0) indentStyle else noIndentStyle,
                             color = palette.foreground,
                             modifier = Modifier.height(with(density) { item.heightPx.toDp() })
                                 .semantics { selected = activeRange != null },
@@ -932,11 +948,11 @@ private fun ReaderError(message: String, onRetry: () -> Unit, onBack: () -> Unit
 }
 
 @Composable
-private fun readerTextStyle(settings: ReaderSettings, color: Color) = TextStyle(
+private fun readerTextStyle(settings: ReaderSettings, color: Color, applyIndent: Boolean = true) = TextStyle(
     color = color,
     fontSize = settings.fontSizeSp.sp,
     lineHeight = (settings.fontSizeSp * settings.lineHeight).sp,
-    textIndent = if (settings.firstLineIndent) TextIndent(firstLine = (settings.fontSizeSp * 2).sp) else null,
+    textIndent = if (applyIndent && settings.firstLineIndent) TextIndent(firstLine = (settings.fontSizeSp * 2).sp) else null,
 )
 
 internal data class ReaderPalette(

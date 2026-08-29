@@ -9,7 +9,7 @@ import top.ntutn.sonovelreader.data.ReaderPageItem
 internal data class MeasuredTextSlice(val characterCount: Int, val heightPx: Int)
 
 internal fun interface ReaderTextLayouter {
-    fun measure(text: String, widthPx: Int, maxHeightPx: Int): MeasuredTextSlice
+    fun measure(text: String, widthPx: Int, maxHeightPx: Int, isStartOfBlock: Boolean): MeasuredTextSlice
 }
 
 internal fun paginateReaderContent(
@@ -17,6 +17,7 @@ internal fun paginateReaderContent(
     widthPx: Int,
     heightPx: Int,
     spacingPx: Int,
+    firstPageReservedHeightPx: Int = 0,
     textLayouter: ReaderTextLayouter,
 ): List<ReaderPage> {
     if (content.blocks.isEmpty() || widthPx <= 0 || heightPx <= 0) {
@@ -24,7 +25,7 @@ internal fun paginateReaderContent(
     }
     val pages = mutableListOf<ReaderPage>()
     val items = mutableListOf<ReaderPageItem>()
-    var usedHeight = 0
+    var usedHeight = firstPageReservedHeightPx.coerceIn(0, heightPx)
 
     fun finishPage() {
         if (items.isEmpty()) return
@@ -52,10 +53,11 @@ internal fun paginateReaderContent(
                         finishPage()
                         remaining = heightPx
                     }
-                    var measured = textLayouter.measure(block.text.substring(offset), widthPx, remaining)
+                    val isStartOfBlock = offset == 0
+                    var measured = textLayouter.measure(block.text.substring(offset), widthPx, remaining, isStartOfBlock)
                     if (measured.characterCount <= 0 && items.isNotEmpty()) {
                         finishPage()
-                        measured = textLayouter.measure(block.text.substring(offset), widthPx, heightPx)
+                        measured = textLayouter.measure(block.text.substring(offset), widthPx, heightPx, isStartOfBlock)
                     }
                     val consumed = measured.characterCount.coerceIn(1, block.text.length - offset)
                     val measuredHeight = measured.heightPx.coerceIn(1, heightPx)

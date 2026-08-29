@@ -9,7 +9,7 @@ import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderPageItem
 
 class ReaderPaginationTest {
-    private val layouter = ReaderTextLayouter { text, width, height ->
+    private val layouter = ReaderTextLayouter { text, width, height, _ ->
         val charactersPerLine = (width / 10).coerceAtLeast(1)
         val lines = (height / 20).coerceAtLeast(0)
         val count = (charactersPerLine * lines).coerceAtMost(text.length)
@@ -39,7 +39,7 @@ class ReaderPaginationTest {
         val image = ReaderBlock.Image("/tmp/image.png", "image", aspectRatio = 0.2f)
         val content = ReaderContent(listOf(ReaderBlock.Text("x".repeat(40)), image))
 
-        val pages = paginateReaderContent(content, 100, 100, 10, layouter)
+        val pages = paginateReaderContent(content, 100, 100, 10, textLayouter = layouter)
 
         assertEquals(2, pages.size)
         val imageItem = pages.last().items.single() as ReaderPageItem.Image
@@ -53,7 +53,7 @@ class ReaderPaginationTest {
             100,
             100,
             0,
-            layouter,
+            textLayouter = layouter,
         )
 
         assertEquals(0, pages.pageForProgress(0f))
