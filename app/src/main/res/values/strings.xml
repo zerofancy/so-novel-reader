@@ -1,3 +1,46 @@
 <resources>
     <string name="app_name">拾光阅读</string>
+
+    <!-- ===== 书架 & 分组 ===== -->
+    <string name="top_bar_bookshelf">我的书架</string>
+    <string name="manage_groups">管理分组</string>
+
+    <string name="group_new_action">新建分组</string>
+    <string name="group_new_description">点击创建新分组</string>
+    <string name="group_card_book_count">%1$d 本</string>
+
+    <string name="group_empty">这个分组还没有书。\n可以在书架顶层长按书籍，选择「移动到分组」。</string>
+    <string name="top_level_empty_hint_with_groups">还没有直接放在顶层的书，试试点击上面的分组。</string>
+
+    <string name="group_rename_action">重命名分组</string>
+    <string name="group_delete_action">删除分组</string>
+    <string name="group_delete_confirm">删除「%1$s」？\n组内的 %2$d 本书会回到书架顶层，不会被删除。</string>
+
+    <string name="group_name_hint">请输入分组名</string>
+    <string name="group_name_invalid">分组名不能为空</string>
+    <string name="group_name_duplicate">已有同名分组</string>
+
+    <string name="create_group_dialog_title">新建分组</string>
+    <string name="rename_group_dialog_title">重命名分组</string>
+    <string name="dialog_ok">确定</string>
+    <string name="dialog_cancel">取消</string>
+
+    <string name="group_deleted_toast">分组已删除，组内书籍回到书架顶层</string>
+
+    <!-- ===== 移动书籍到分组 ===== -->
+    <string name="move_book_action">移动到分组…</string>
+    <string name="move_book_title">移动《%1$s》到…</string>
+    <string name="move_to_top_level">书架顶层</string>
+    <string name="move_to_group_name">移动到「%1$s」</string>
+    <string name="moved_to_top_level_toast">已移回书架顶层</string>
+    <string name="moved_to_group_toast">已移入分组</string>
+
+    <!-- ===== 书籍删除（已有逻辑，补充 toast）===== -->
+    <string name="delete_book_title">删除书籍？</string>
+    <string name="delete_book_message">书籍文件和阅读进度都会从本机删除，此操作无法撤销。</string>
+    <string name="delete_book_confirm">删除</string>
+
+    <!-- ===== 导入 ===== -->
+    <string name="import_hint">选择 EPUB 书籍</string>
+    <string name="import_progress">正在导入 EPUB…</string>
 </resources>

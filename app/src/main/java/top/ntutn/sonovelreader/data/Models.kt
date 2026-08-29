@@ -147,6 +147,49 @@ fun BookWithProgress.toShelfBook(): ShelfBook = ShelfBook(
     addedAt = book.addedAt,
 )
 
+/**
+ * 书架顶层展示的分组卡片。
+ *
+ * @param bookCount 组内书籍数量，用作卡片角标
+ */
+data class ShelfGroup(
+    val id: String,
+    val name: String,
+    val bookCount: Int,
+)
+
+/**
+ * 新建 / 重命名分组对话框的状态。
+ *
+ * @param editingId null 表示新建，否则为重命名
+ */
+data class EditGroupState(
+    val editingId: String?,
+    val initialName: String = "",
+)
+
+/**
+ * 「移动书籍」对话框的状态：用户要把某本书从当前分组移到另一个分组 / 顶层。
+ *
+ * @param currentGroupId null 表示目前在顶层书架
+ */
+data class MoveBookState(
+    val bookId: String,
+    val bookTitle: String,
+    val currentGroupId: String?,
+)
+
+/**
+ * 分组详情页面的 UI 状态（对应 `GroupShelfRoute`）。
+ */
+data class GroupShelfUiState(
+    val groupId: String,
+    val groupName: String,
+    val books: List<ShelfBook> = emptyList(),
+    val movingBook: MoveBookState? = null,
+    val deletingBookId: String? = null,
+)
+
 sealed interface ImportItemResult {
     val displayName: String
 

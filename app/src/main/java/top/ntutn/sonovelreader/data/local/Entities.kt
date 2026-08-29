@@ -8,8 +8,30 @@ import androidx.room.PrimaryKey
 import androidx.room.Relation
 
 @Entity(
+    tableName = "categories",
+    indices = [Index(value = ["name"], unique = true)],
+)
+data class CategoryEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val sortOrder: Int,
+    val createdAt: Long,
+)
+
+@Entity(
     tableName = "books",
-    indices = [Index(value = ["contentHash"], unique = true)],
+    indices = [
+        Index(value = ["contentHash"], unique = true),
+        Index(value = ["categoryId"]),
+    ],
+    foreignKeys = [
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
 )
 data class BookEntity(
     @PrimaryKey val id: String,
@@ -21,6 +43,7 @@ data class BookEntity(
     val coverPath: String?,
     val contentHash: String,
     val addedAt: Long,
+    val categoryId: String? = null,
 )
 
 @Entity(

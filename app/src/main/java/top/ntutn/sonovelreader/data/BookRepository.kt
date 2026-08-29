@@ -17,6 +17,7 @@ import java.util.zip.ZipFile
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,7 +26,9 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.parser.Parser
 import top.ntutn.sonovelreader.data.local.BookEntity
+import top.ntutn.sonovelreader.data.local.CategoryEntity
 import top.ntutn.sonovelreader.data.local.LibraryDao
+import top.ntutn.sonovelreader.data.local.LibraryDao.GroupBookCountRow
 
 class BookRepository(
     private val context: Context,
@@ -34,9 +37,93 @@ class BookRepository(
 ) {
     private val importMutex = Mutex()
 
+    // ================================================================
+    // 书架数据流
+    // ================================================================
+
     fun observeShelf(): Flow<List<ShelfBook>> = dao.observeShelf().map { books ->
         books.map(BookWithProgressMapper)
     }
+
+    /**
+     * 顶层书架：所有分组卡片 + 未分组书籍。
+     * 用作书架首页的数据来源。
+     */
+    fun observeTopLevelShelf(): Flow<Pair<List<ShelfGroup>, List<ShelfBook>>> =
+        combine(
+            dao.observeGroups(),
+            dao.observeGroupBookCounts(),
+            dao.observeTopLevelBooks(),
+        ) { groups, countRows, books ->
+            val counts: Map<String, Int> = countRows.associate { it.categoryId to it.bookCount }
+            val shelfGroups = groups.map { g ->
+                ShelfGroup(id = g.id, name = g.name, bookCount = counts[g.id] ?: 0)
+            }
+            shelfGroups to books.map(BookWithProgressMapper)
+        }
+
+    /** 分组详情：指定分组内的书籍。 */
+    fun observeGroupShelf(groupId: String): Flow<List<ShelfBook>> =
+        dao.observeBooksInGroup(groupId).map { it.map(BookWithProgressMapper) }
+
+    /**
+     * 分组列表 Flow。
+     * 供 ViewModel 监听分组是否被删除/重命名，以驱动 UI 回退或标题更新。
+     */
+    fun observeGroups(): Flow<List<ShelfGroup>> =
+        combine(dao.observeGroups(), dao.observeGroupBookCounts()) { groups, countRows ->
+            val counts: Map<String, Int> = countRows.associateBy(
+                GroupBookCountRow::categoryId,
+                GroupBookCountRow::bookCount,
+            )
+            groups.map { ShelfGroup(it.id, it.name, counts[it.id] ?: 0) }
+        }
+
+    // ================================================================
+    // 分组 CRUD
+    // ================================================================
+
+    suspend fun getGroups(): List<ShelfGroup> = withContext(ioDispatcher) {
+        // 仅用于 ViewModel 按 id 找 name / 拿 entity 进行 update/delete；bookCount 不使用
+        dao.getGroups().map { ShelfGroup(it.id, it.name, bookCount = 0) }
+    }
+
+    suspend fun createGroup(name: String): String = withContext(ioDispatcher) {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "分组名不能为空" }
+        val id = UUID.randomUUID().toString()
+        val order = (dao.getGroups().maxOfOrNull { it.sortOrder } ?: -1) + 1
+        dao.insertGroup(
+            CategoryEntity(
+                id = id,
+                name = trimmed,
+                sortOrder = order,
+                createdAt = System.currentTimeMillis(),
+            )
+        )
+        id
+    }
+
+    suspend fun renameGroup(id: String, newName: String) = withContext(ioDispatcher) {
+        val trimmed = newName.trim()
+        require(trimmed.isNotEmpty()) { "分组名不能为空" }
+        val existing = dao.getGroups().find { it.id == id } ?: return@withContext
+        dao.updateGroup(existing.copy(name = trimmed))
+    }
+
+    suspend fun deleteGroup(id: String) = withContext(ioDispatcher) {
+        val existing = dao.getGroups().find { it.id == id } ?: return@withContext
+        dao.deleteGroup(existing) // FK ON DELETE SET NULL → 组内书籍 categoryId 置空
+    }
+
+    // ================================================================
+    // 移动书籍
+    // ================================================================
+
+    suspend fun moveBookToGroup(bookId: String, targetGroupId: String?) =
+        withContext(ioDispatcher) {
+            dao.updateBookGroup(bookId, targetGroupId)
+        }
 
     suspend fun importBooks(uris: List<Uri>): ImportBatchResult = withContext(ioDispatcher) {
         importMutex.withLock {

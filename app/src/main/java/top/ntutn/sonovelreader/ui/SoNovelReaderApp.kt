@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -34,9 +35,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import top.ntutn.sonovelreader.AppContainer
+import top.ntutn.sonovelreader.data.ShelfGroup
 
 @Serializable
 data object BookshelfRoute
+
+@Serializable
+data class GroupShelfRoute(
+    val groupId: String,
+    val groupName: String,
+)
 
 @Serializable
 data object SettingsRoute
@@ -84,6 +92,7 @@ fun SoNovelReaderApp(
         libraryViewModel.events.collect { event ->
             when (event) {
                 is LibraryEvent.Message -> snackbarHostState.showSnackbar(event.text)
+                LibraryEvent.PopBackStack -> navController.popBackStack()
                 is LibraryEvent.ImportFinished -> {
                     val result = event.result
                     val message = buildString {
@@ -106,7 +115,8 @@ fun SoNovelReaderApp(
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
-    val showNavigation = destination?.hasRoute<ReaderRoute>() != true
+    val showNavigation =
+        destination?.hasRoute<ReaderRoute>() != true && destination?.hasRoute<GroupShelfRoute>() != true
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -118,7 +128,9 @@ fun SoNovelReaderApp(
                         selected = destination?.hasRoute<BookshelfRoute>() == true,
                         onClick = {
                             navController.navigate(BookshelfRoute) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -130,7 +142,9 @@ fun SoNovelReaderApp(
                         selected = destination?.hasRoute<SettingsRoute>() == true,
                         onClick = {
                             navController.navigate(SettingsRoute) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -147,17 +161,134 @@ fun SoNovelReaderApp(
             startDestination = BookshelfRoute,
             modifier = Modifier,
         ) {
+            // ========= 书架顶层 =========
             composable<BookshelfRoute> {
                 BookshelfScreen(
                     state = libraryState,
-                    onImport = { picker.launch(arrayOf("application/epub+zip", "application/zip", "application/octet-stream")) },
+                    onImport = {
+                        picker.launch(
+                            arrayOf(
+                                "application/epub+zip",
+                                "application/zip",
+                                "application/octet-stream",
+                            )
+                        )
+                    },
                     onOpenBook = { navController.navigate(ReaderRoute(it)) },
                     onDeleteBook = libraryViewModel::requestDelete,
                     onConfirmDelete = libraryViewModel::confirmDelete,
                     onCancelDelete = libraryViewModel::cancelDelete,
+                    onOpenGroup = { group: ShelfGroup ->
+                        navController.navigate(GroupShelfRoute(group.id, group.name))
+                    },
+                    onCreateGroup = libraryViewModel::showCreateGroupDialog,
+                    onRenameGroup = libraryViewModel::showRenameGroupDialog,
+                    onRequestDeleteGroup = libraryViewModel::requestDeleteGroup,
+                    onCancelDeleteGroup = libraryViewModel::cancelDeleteGroup,
+                    onConfirmDeleteGroup = libraryViewModel::confirmDeleteGroup,
+                    onDismissEditGroup = libraryViewModel::dismissEditGroupDialog,
+                    onConfirmEditGroup = libraryViewModel::confirmEditGroup,
+                    onRequestMoveBook = { bookId, bookTitle, currentGroupId ->
+                        libraryViewModel.requestMoveBook(bookId, bookTitle, currentGroupId)
+                    },
+                    onCancelMoveBook = libraryViewModel::cancelMoveBook,
+                    onConfirmMoveBook = libraryViewModel::confirmMoveBook,
+                    onRequestMoveToNewGroup = libraryViewModel::requestMoveToNewGroup,
                     modifier = Modifier.padding(contentPadding),
                 )
             }
+
+            // ========= 分组详情 =========
+            composable<GroupShelfRoute> { entry ->
+                val route = entry.toRoute<GroupShelfRoute>()
+                val groupViewModel: GroupShelfViewModel = viewModel(
+                    key = "group-${route.groupId}",
+                    factory = AppViewModelFactory(
+                        container,
+                        groupId = route.groupId,
+                        groupName = route.groupName,
+                    ),
+                )
+                val groupState by groupViewModel.state.collectAsStateWithLifecycle()
+
+                LaunchedEffect(groupViewModel) {
+                    groupViewModel.events.collect { event ->
+                        when (event) {
+                            is LibraryEvent.Message -> snackbarHostState.showSnackbar(event.text)
+                            LibraryEvent.PopBackStack -> navController.popBackStack()
+                            is LibraryEvent.ImportFinished -> { /* noop */ }
+                        }
+                    }
+                }
+
+                GroupShelfScreen(
+                    state = groupState,
+                    groups = libraryState.groups,
+                    onBack = navController::popBackStack,
+                    onOpenBook = { navController.navigate(ReaderRoute(it)) },
+                    onDeleteBook = groupViewModel::requestDelete,
+                    onConfirmDelete = groupViewModel::confirmDelete,
+                    onCancelDelete = groupViewModel::cancelDelete,
+                    onRenameGroup = {
+                        // 复用顶层 LibraryViewModel 的「重命名分组」对话框状态机，
+                        // 通过它来编辑，因为 LibraryViewModel 管着 groups 列表。
+                        libraryViewModel.showRenameGroupDialog(route.groupId)
+                    },
+                    onRequestDeleteGroup = {
+                        libraryViewModel.requestDeleteGroup(route.groupId)
+                    },
+                    onCancelDeleteGroup = libraryViewModel::cancelDeleteGroup,
+                    onConfirmDeleteGroup = libraryViewModel::confirmDeleteGroup,
+                    onDismissEditGroup = libraryViewModel::dismissEditGroupDialog,
+                    onConfirmEditGroup = libraryViewModel::confirmEditGroup,
+                    onRequestMoveBook = { bookId, bookTitle ->
+                        groupViewModel.requestMoveBook(bookId, bookTitle)
+                    },
+                    onCancelMoveBook = groupViewModel::cancelMoveBook,
+                    onConfirmMoveBook = groupViewModel::confirmMoveBook,
+                    onRequestMoveToNewGroup = { bookId ->
+                        groupViewModel.cancelMoveBook()
+                        libraryViewModel.requestMoveToNewGroup(bookId)
+                    },
+                    showRenameDialog = libraryState.editingGroup?.editingId == route.groupId,
+                    modifier = Modifier.padding(contentPadding),
+                )
+
+                // 如果顶层 ViewModel 的删除分组确认框正在作用于当前分组，也在这里渲染一次确认对话框，
+                // 让用户在分组详情页点"删除分组"菜单时能看到确认。
+                val deletingGid = libraryState.deletingGroupId
+                if (deletingGid == route.groupId) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = libraryViewModel::cancelDeleteGroup,
+                        title = { androidx.compose.material3.Text("删除分组？") },
+                        text = {
+                            val g = libraryState.groups.find { it.id == deletingGid }
+                            androidx.compose.material3.Text(
+                                if (g != null) {
+                                    "删除「${g.name}」？\n组内的 ${g.bookCount} 本书会回到书架顶层，不会被删除。"
+                                } else {
+                                    "分组不存在或已被删除"
+                                }
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(
+                                onClick = libraryViewModel::confirmDeleteGroup,
+                            ) { androidx.compose.material3.Text("删除") }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(
+                                onClick = libraryViewModel::cancelDeleteGroup,
+                            ) { androidx.compose.material3.Text("取消") }
+                        },
+                        icon = {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                        },
+                    )
+                }
+            }
+
+            // ========= 设置 =========
             composable<SettingsRoute> {
                 LaunchedEffect(Unit) { settingsViewModel.loadTtsVoices() }
                 SettingsScreen(
@@ -176,17 +307,21 @@ fun SoNovelReaderApp(
                     modifier = Modifier.padding(contentPadding),
                 )
             }
+
+            // ========= 阅读器 =========
             composable<ReaderRoute> { entry ->
                 val route = entry.toRoute<ReaderRoute>()
                 val readerViewModel: ReaderViewModel = viewModel(
                     key = route.bookId,
-                    factory = AppViewModelFactory(container, route.bookId),
+                    factory = AppViewModelFactory(container, bookId = route.bookId),
                 )
                 ReaderScreen(
                     viewModel = readerViewModel,
                     onBack = navController::popBackStack,
                     onOpenSettings = { navController.navigate(SettingsRoute) },
-                    onMessage = { message -> appScope.launch { snackbarHostState.showSnackbar(message) } },
+                    onMessage = { message ->
+                        appScope.launch { snackbarHostState.showSnackbar(message) }
+                    },
                 )
             }
         }
