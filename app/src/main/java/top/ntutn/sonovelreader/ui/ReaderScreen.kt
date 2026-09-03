@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
@@ -312,6 +313,15 @@ fun ReaderScreen(
 
                 if (showToc) {
                     ModalBottomSheet(onDismissRequest = { showToc = false }) {
+                        val tocListState = rememberLazyListState()
+                        val currentTocIndex = book.toc.indexOfFirst { it.href == chapter.href }
+                        
+                        LaunchedEffect(showToc) {
+                            if (showToc && currentTocIndex >= 0) {
+                                tocListState.scrollToItem(currentTocIndex)
+                            }
+                        }
+                        
                         Text(
                             "目录",
                             style = MaterialTheme.typography.headlineSmall,
@@ -322,7 +332,7 @@ fun ReaderScreen(
                         if (book.toc.isEmpty()) {
                             Text("这本书没有提供目录", Modifier.padding(24.dp))
                         } else {
-                            LazyColumn(Modifier.fillMaxWidth()) {
+                            LazyColumn(Modifier.fillMaxWidth(), state = tocListState) {
                                 items(book.toc) { item ->
                                     TocRow(
                                         item = item,
