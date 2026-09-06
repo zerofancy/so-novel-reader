@@ -3,7 +3,7 @@ package top.ntutn.sonovelreader.data
 import top.ntutn.sonovelreader.data.local.BookEntity
 import top.ntutn.sonovelreader.data.local.BookWithProgress
 
-enum class ReadingMode { SCROLL, PAGED }
+enum class ReadingMode { SCROLL, PAGED, FLIP }
 
 enum class ReaderTheme { SYSTEM, LIGHT, DARK, SEPIA }
 

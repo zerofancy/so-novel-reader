@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.epub4j.core) {
         exclude(group = "xmlpull")
     }
+    implementation(libs.ptqflipper)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)

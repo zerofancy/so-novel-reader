@@ -8,10 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +23,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Pause
@@ -59,15 +58,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.tts.TtsPlaybackStatus
-import top.ntutn.sonovelreader.tts.TtsSentence
 import top.ntutn.sonovelreader.tts.progressAt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -187,7 +185,8 @@ fun ReaderScreen(
                     }
                 }
 
-                if (state.settings.readingMode == ReadingMode.SCROLL) {
+                when (state.settings.readingMode) {
+                    ReadingMode.SCROLL ->
                     VerticalReader(
                         content = content,
                         settings = state.settings,
@@ -206,8 +205,27 @@ fun ReaderScreen(
                         activeSentence = if (followSuspended) null else activeSentence?.locator,
                         onManualNavigation = { followSuspended = true },
                     )
-                } else {
-                    PagedReader(
+                    ReadingMode.PAGED ->
+                        PagedReader(
+                        content = content,
+                        settings = state.settings,
+                        palette = palette,
+                        chapterTitle = chapter.title,
+                        initialFraction = locator.chapterFraction,
+                        fragment = pendingFragment,
+                        jumpToken = jumpToken,
+                        hasPreviousChapter = locator.chapterIndex > 0,
+                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                        onToggleControls = { controlsVisible = !controlsVisible },
+                        onProgress = viewModel::updateFraction,
+                        onFragmentConsumed = { pendingFragment = null },
+                        onPreviousChapter = onPreviousChapter,
+                        onNextChapter = onNextChapter,
+                        activeSentence = if (followSuspended) null else activeSentence?.locator,
+                        onManualNavigation = { followSuspended = true },
+                    )
+                    ReadingMode.FLIP ->
+                        FlipReader(
                         content = content,
                         settings = state.settings,
                         palette = palette,
@@ -278,11 +296,19 @@ fun ReaderScreen(
                         IconButton(onClick = {
                             viewModel.flushProgress()
                             viewModel.setMode(
-                                if (state.settings.readingMode == ReadingMode.SCROLL) ReadingMode.PAGED else ReadingMode.SCROLL,
+                                when (state.settings.readingMode) {
+                                    ReadingMode.SCROLL -> ReadingMode.PAGED
+                                    ReadingMode.PAGED -> ReadingMode.FLIP
+                                    ReadingMode.FLIP -> ReadingMode.SCROLL
+                                }
                             )
                         }) {
                             Icon(
-                                if (state.settings.readingMode == ReadingMode.SCROLL) Icons.Default.SwapHoriz else Icons.Default.SwapVert,
+                                when (state.settings.readingMode) {
+                                    ReadingMode.SCROLL -> Icons.Default.SwapVert
+                                    ReadingMode.PAGED -> Icons.Default.SwapHoriz
+                                    ReadingMode.FLIP -> Icons.AutoMirrored.Filled.MenuBook
+                                },
                                 contentDescription = "切换阅读方式",
                             )
                         }

@@ -81,6 +81,11 @@ fun SettingsScreen(
                     onClick = { onModeChange(ReadingMode.PAGED) },
                     label = { Text("左右分页") },
                 )
+                FilterChip(
+                    selected = settings.readingMode == ReadingMode.FLIP,
+                    onClick = { onModeChange(ReadingMode.FLIP) },
+                    label = { Text("仿真翻页") },
+                )
             }
             HorizontalDivider()
             SettingTitle("字号  ${settings.fontSizeSp} sp")
