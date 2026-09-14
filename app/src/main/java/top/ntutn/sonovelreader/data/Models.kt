@@ -5,7 +5,7 @@ import top.ntutn.sonovelreader.data.local.BookWithProgress
 
 enum class ReadingMode { SCROLL, PAGED, FLIP }
 
-enum class ReaderTheme { SYSTEM, LIGHT, DARK, SEPIA }
+enum class ReaderTheme { SYSTEM, LIGHT, DARK, SEPIA, LINEN, GREEN, GRAY }
 
 data class ReaderSettings(
     val readingMode: ReadingMode = ReadingMode.SCROLL,

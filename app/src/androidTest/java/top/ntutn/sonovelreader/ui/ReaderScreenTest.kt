@@ -1,26 +1,31 @@
 package top.ntutn.sonovelreader.ui
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
-import androidx.compose.ui.semantics.SemanticsProperties
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import top.ntutn.sonovelreader.data.ReaderBlock
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderSettings
+import top.ntutn.sonovelreader.data.ReaderTheme
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.tts.TtsSentenceLocator
+import top.ntutn.sonovelreader.tts.TtsVoiceCatalogState
 
 class ReaderScreenTest {
     @get:Rule
@@ -32,6 +37,43 @@ class ReaderScreenTest {
         muted = Color.Gray,
         placeholder = Color.LightGray,
     )
+
+    @Test
+    fun themeCardsSelectEachPresetAndClearPreviousSelection() {
+        val settings = mutableStateOf(ReaderSettings())
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsScreen(
+                    settings = settings.value,
+                    onModeChange = {},
+                    onFontSizeChange = {},
+                    onLineHeightChange = {},
+                    onFirstLineIndentChange = {},
+                    onParagraphSpacingChange = {},
+                    onThemeChange = { settings.value = settings.value.copy(theme = it) },
+                    onKeepScreenOnChange = {},
+                    ttsVoices = TtsVoiceCatalogState(),
+                    onTtsRateChange = {},
+                    onTtsPitchChange = {},
+                    onTtsVoiceChange = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("reader-theme-SYSTEM").assertIsSelected()
+        val labels = listOf("跟随系统", "浅色", "深色", "米黄纸", "亚麻纸", "淡绿", "柔灰")
+        ReaderTheme.entries.zip(labels).forEach { (theme, label) ->
+            composeRule.onNodeWithText(label).assertExists()
+            composeRule.onNodeWithTag("reader-theme-${theme.name}").performScrollTo().performClick()
+            composeRule.runOnIdle { assertEquals(theme, settings.value.theme) }
+            ReaderTheme.entries.forEach { candidate ->
+                val node = composeRule.onNodeWithTag("reader-theme-${candidate.name}")
+                if (candidate == theme) node.assertIsSelected() else node.assertIsNotSelected()
+            }
+        }
+        composeRule.onNodeWithTag("reader-theme-SYSTEM").performScrollTo().performClick().assertIsSelected()
+        composeRule.onNodeWithTag("reader-theme-GRAY").assertIsNotSelected()
+    }
 
     @Test
     fun verticalReaderRendersTextAndMissingImagePlaceholder() {
