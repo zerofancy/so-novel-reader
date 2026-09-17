@@ -22,10 +22,21 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SoNovelReader">
+
+        <!-- SAEP：AI 操作声明策略（静态声明，系统安装/更新时缓存） -->
+        <meta-data
+            android:name="com.obric.agentrobots.POLICY_JSON"
+            android:resource="@raw/agent_saep_policy" />
         <service
             android:name=".tts.TtsPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <activity
+            android:name=".AiOperationSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.SoNovelReader" />
 
         <activity
             android:name=".MainActivity"

@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.readerDataStore by preferencesDataStore(name = "reader_settings")
@@ -27,7 +28,15 @@ class SettingsRepository(private val context: Context) {
         val ttsVoiceName = stringPreferencesKey("tts_voice_name")
     }
 
+    private object AiKeys {
+        val allowAiOperation = booleanPreferencesKey("ai_allow_operation")
+        val allowAiDeleteContent = booleanPreferencesKey("ai_allow_delete_content")
+        val policyVersion = intPreferencesKey("ai_policy_version")
+    }
+
     val settings: Flow<ReaderSettings> = context.readerDataStore.data.map(::decode)
+
+    val aiSettings: Flow<AiSettings> = context.readerDataStore.data.map(::decodeAi)
 
     suspend fun setReadingMode(value: ReadingMode) = update(Keys.mode, value.name)
     suspend fun setFontSize(value: Int) = update(Keys.fontSize, value.coerceIn(14, 32))
@@ -44,9 +53,30 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun setAllowAiOperation(value: Boolean) = update(AiKeys.allowAiOperation, value)
+    suspend fun setAllowAiDeleteContent(value: Boolean) = update(AiKeys.allowAiDeleteContent, value)
+
+    suspend fun currentAiSettings(): AiSettings = decodeAi(context.readerDataStore.data.first())
+
+    /** 原子地取下一个策略版本号并持久化，保证单调递增。 */
+    suspend fun nextPolicyVersion(): Int {
+        var next = 1
+        context.readerDataStore.edit { preferences ->
+            next = (preferences[AiKeys.policyVersion] ?: 1) + 1
+            preferences[AiKeys.policyVersion] = next
+        }
+        return next
+    }
+
     private suspend fun <T> update(key: Preferences.Key<T>, value: T) {
         context.readerDataStore.edit { it[key] = value }
     }
+
+    private fun decodeAi(preferences: Preferences): AiSettings = AiSettings(
+        allowAiOperation = preferences[AiKeys.allowAiOperation] ?: true,
+        allowAiDeleteContent = preferences[AiKeys.allowAiDeleteContent] ?: false,
+        policyVersion = preferences[AiKeys.policyVersion] ?: 1,
+    )
 
     private fun decode(preferences: Preferences): ReaderSettings = ReaderSettings(
         readingMode = preferences[Keys.mode].toEnumOrDefault(ReadingMode.SCROLL),

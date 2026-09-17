@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import top.ntutn.sonovelreader.data.BookRepository
 import top.ntutn.sonovelreader.data.ProgressRepository
+import top.ntutn.sonovelreader.data.SaepPolicyManager
 import top.ntutn.sonovelreader.data.SettingsRepository
 import top.ntutn.sonovelreader.data.local.LibraryDatabase
 import top.ntutn.sonovelreader.tts.SystemTtsVoiceCatalog
@@ -29,6 +30,7 @@ class AppContainer(application: Application) {
     val bookRepository = BookRepository(application, database.libraryDao())
     val progressRepository = ProgressRepository(database.libraryDao())
     val settingsRepository = SettingsRepository(application)
+    val saepPolicyManager = SaepPolicyManager(application)
     val ttsPlaybackManager = TtsPlaybackManager(application)
     val ttsVoiceCatalog = SystemTtsVoiceCatalog(application)
 }

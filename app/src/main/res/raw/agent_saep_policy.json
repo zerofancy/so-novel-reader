@@ -1,0 +1,42 @@
+{
+  "schema": "AGRP-Policy/1.0",
+  "policy_version": 1,
+  "package": "top.ntutn.sonovelreader",
+  "updated_at": "1789670785956",
+  "default_policy": {
+    "app": {
+      "global_disable": false,
+      "screenshot_disable": false,
+      "input_disable": false
+    }
+  },
+  "scope": {
+    "app": {
+      "global_disable": false
+    },
+    "activities": {
+      "top.ntutn.sonovelreader.MainActivity": {
+        "name": "主界面",
+        "page_scope": {
+          "global_disable": false,
+          "screenshot_disable": false,
+          "input_disable": false
+        }
+      },
+      "top.ntutn.sonovelreader.AiOperationSettingsActivity": {
+        "name": "AI操作设置",
+        "page_scope": {
+          "global_disable": true,
+          "screenshot_disable": true,
+          "input_disable": true
+        }
+      }
+    },
+    "agent_intents": {
+      "modify_content": false,
+      "post_content": false,
+      "delete_content": true,
+      "account_incentive": false
+    }
+  }
+}

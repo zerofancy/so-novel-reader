@@ -22,6 +22,7 @@ import top.ntutn.sonovelreader.data.GroupShelfUiState
 import top.ntutn.sonovelreader.data.ImportBatchResult
 import top.ntutn.sonovelreader.data.MoveBookState
 import top.ntutn.sonovelreader.data.ParsedBook
+import top.ntutn.sonovelreader.data.AiSettings
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReaderSettings
@@ -283,6 +284,11 @@ class GroupShelfViewModel(
 // =====================================
 
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
+    val aiSettings = container.settingsRepository.aiSettings.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        AiSettings(),
+    )
     val settings = container.settingsRepository.settings.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -290,6 +296,14 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     )
     private val mutableTtsVoices = MutableStateFlow(TtsVoiceCatalogState())
     val ttsVoices = mutableTtsVoices.asStateFlow()
+
+    private val mutableSaepAvailable = MutableStateFlow<Boolean?>(null)
+    /** SAEP 是否可用；null 表示检测中。 */
+    val saepAvailable = mutableSaepAvailable.asStateFlow()
+
+    init {
+        viewModelScope.launch { mutableSaepAvailable.value = container.saepPolicyManager.isSaepEnabled() }
+    }
 
     fun setMode(value: ReadingMode) = viewModelScope.launch { container.settingsRepository.setReadingMode(value) }
     fun setFontSize(value: Int) = viewModelScope.launch { container.settingsRepository.setFontSize(value) }
@@ -321,6 +335,46 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         if (container.ttsPlaybackManager.state.value.status in setOf(TtsPlaybackStatus.PLAYING, TtsPlaybackStatus.PAUSED)) {
             container.ttsPlaybackManager.updateSettings(value)
         }
+    }
+}
+
+// =====================================
+// AI 操作设置 ViewModel https://o.doubao.com/developer
+// =====================================
+
+sealed interface SaepSyncState {
+    data object Idle : SaepSyncState
+    data class Synced(val version: Int) : SaepSyncState
+    data object Failed : SaepSyncState
+}
+
+class AiOperationSettingsViewModel(private val container: AppContainer) : ViewModel() {
+    val aiSettings = container.settingsRepository.aiSettings.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        AiSettings(),
+    )
+
+    private val mutableSaepAvailable = MutableStateFlow<Boolean?>(null)
+    val saepAvailable = mutableSaepAvailable.asStateFlow()
+
+    private val mutableSyncState = MutableStateFlow<SaepSyncState>(SaepSyncState.Idle)
+    val syncState = mutableSyncState.asStateFlow()
+
+    init {
+        viewModelScope.launch { mutableSaepAvailable.value = container.saepPolicyManager.isSaepEnabled() }
+    }
+
+    fun setAllowAiOperation(value: Boolean) = applySetting { container.settingsRepository.setAllowAiOperation(value) }
+    fun setAllowAiDeleteContent(value: Boolean) = applySetting { container.settingsRepository.setAllowAiDeleteContent(value) }
+
+    private fun applySetting(update: suspend () -> Unit) = viewModelScope.launch {
+        mutableSyncState.value = SaepSyncState.Idle
+        update()
+        val settings = container.settingsRepository.currentAiSettings()
+        val version = container.settingsRepository.nextPolicyVersion()
+        val pushed = container.saepPolicyManager.pushPolicy(settings.copy(policyVersion = version))
+        mutableSyncState.value = if (pushed) SaepSyncState.Synced(version) else SaepSyncState.Failed
     }
 }
 
@@ -487,6 +541,9 @@ class AppViewModelFactory(
 
         modelClass.isAssignableFrom(SettingsViewModel::class.java) ->
             SettingsViewModel(container) as T
+
+        modelClass.isAssignableFrom(AiOperationSettingsViewModel::class.java) ->
+            AiOperationSettingsViewModel(container) as T
 
         modelClass.isAssignableFrom(GroupShelfViewModel::class.java) -> {
             val id = groupId ?: throw IllegalArgumentException("缺少 groupId 以创建 GroupShelfViewModel")

@@ -1,5 +1,6 @@
 package top.ntutn.sonovelreader.ui
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -34,6 +36,7 @@ import androidx.navigation.toRoute
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import top.ntutn.sonovelreader.AiOperationSettingsActivity
 import top.ntutn.sonovelreader.AppContainer
 import top.ntutn.sonovelreader.data.ShelfGroup
 
@@ -60,6 +63,7 @@ fun SoNovelReaderApp(
     requestedTtsBookId: StateFlow<String?>,
     consumeRequestedTtsBook: () -> Unit,
 ) {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val appScope = rememberCoroutineScope()
@@ -68,6 +72,8 @@ fun SoNovelReaderApp(
     val libraryState by libraryViewModel.state.collectAsStateWithLifecycle()
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     val ttsVoices by settingsViewModel.ttsVoices.collectAsStateWithLifecycle()
+    val aiSettings by settingsViewModel.aiSettings.collectAsStateWithLifecycle()
+    val saepAvailable by settingsViewModel.saepAvailable.collectAsStateWithLifecycle()
     val incomingUris by sharedUris.collectAsStateWithLifecycle()
     val ttsBookId by requestedTtsBookId.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {
@@ -304,6 +310,11 @@ fun SoNovelReaderApp(
                     onTtsRateChange = settingsViewModel::setTtsRate,
                     onTtsPitchChange = settingsViewModel::setTtsPitch,
                     onTtsVoiceChange = settingsViewModel::setTtsVoiceName,
+                    showAiOperationEntry = saepAvailable == true,
+                    aiAllowOperation = aiSettings.allowAiOperation,
+                    onOpenAiOperationSettings = {
+                        context.startActivity(Intent(context, AiOperationSettingsActivity::class.java))
+                    },
                     modifier = Modifier.padding(contentPadding),
                 )
             }
