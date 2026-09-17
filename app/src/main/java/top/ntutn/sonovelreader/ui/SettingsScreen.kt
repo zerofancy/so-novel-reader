@@ -2,9 +2,11 @@ package top.ntutn.sonovelreader.ui
 
 import android.content.Intent
 import android.speech.tts.TextToSpeech
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -12,16 +14,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -34,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -128,13 +140,18 @@ fun SettingsScreen(
             )
             HorizontalDivider()
             SettingTitle("阅读主题")
-            ChoiceRow {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 ThemeChoice("跟随系统", ReaderTheme.SYSTEM, settings.theme, onThemeChange)
                 ThemeChoice("浅色", ReaderTheme.LIGHT, settings.theme, onThemeChange)
-            }
-            ChoiceRow {
                 ThemeChoice("深色", ReaderTheme.DARK, settings.theme, onThemeChange)
-                ThemeChoice("护眼", ReaderTheme.SEPIA, settings.theme, onThemeChange)
+                ThemeChoice("米黄纸", ReaderTheme.SEPIA, settings.theme, onThemeChange)
+                ThemeChoice("亚麻纸", ReaderTheme.LINEN, settings.theme, onThemeChange)
+                ThemeChoice("淡绿", ReaderTheme.GREEN, settings.theme, onThemeChange)
+                ThemeChoice("柔灰", ReaderTheme.GRAY, settings.theme, onThemeChange)
             }
             HorizontalDivider()
             Row(
@@ -236,9 +253,30 @@ private fun ThemeChoice(
     selected: ReaderTheme,
     onSelected: (ReaderTheme) -> Unit,
 ) {
-    FilterChip(
-        selected = value == selected,
-        onClick = { onSelected(value) },
-        label = { Text(label) },
-    )
+    val palette = readerPalette(value)
+    val isSelected = value == selected
+    Surface(
+        modifier = Modifier.width(140.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = palette.background,
+        contentColor = palette.foreground,
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) palette.foreground else palette.muted),
+    ) {
+        Column(
+            modifier = Modifier
+                .testTag("reader-theme-${value.name}")
+                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelected(value) })
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
+                if (isSelected) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                }
+            }
+            Text("春风拂过书页", style = MaterialTheme.typography.bodyMedium)
+            Text("阅读配色", color = palette.muted, style = MaterialTheme.typography.labelSmall)
+        }
+    }
 }

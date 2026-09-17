@@ -47,18 +47,17 @@ internal data class ReaderPalette(
 )
 
 @Composable
-internal fun readerPalette(theme: ReaderTheme): ReaderPalette {
-    val darkSystem = androidx.compose.foundation.isSystemInDarkTheme()
-    return when (theme) {
-        ReaderTheme.LIGHT -> ReaderPalette(Color(0xFFFAF8F3), Color(0xFF25231F), Color(0xFF6D685E), Color(0xFFE8E3D9))
-        ReaderTheme.DARK -> ReaderPalette(Color(0xFF171717), Color(0xFFE7E2D8), Color(0xFFAAA49A), Color(0xFF292826))
-        ReaderTheme.SEPIA -> ReaderPalette(Color(0xFFF2E8CF), Color(0xFF43392A), Color(0xFF786A55), Color(0xFFE3D5B5))
-        ReaderTheme.SYSTEM -> if (darkSystem) {
-            ReaderPalette(Color(0xFF171717), Color(0xFFE7E2D8), Color(0xFFAAA49A), Color(0xFF292826))
-        } else {
-            ReaderPalette(Color(0xFFFAF8F3), Color(0xFF25231F), Color(0xFF6D685E), Color(0xFFE8E3D9))
-        }
-    }
+internal fun readerPalette(theme: ReaderTheme): ReaderPalette =
+    readerPalette(theme, darkSystem = androidx.compose.foundation.isSystemInDarkTheme())
+
+internal fun readerPalette(theme: ReaderTheme, darkSystem: Boolean): ReaderPalette = when (theme) {
+    ReaderTheme.LIGHT -> ReaderPalette(Color(0xFFFAF8F3), Color(0xFF25231F), Color(0xFF6D685E), Color(0xFFE8E3D9))
+    ReaderTheme.DARK -> ReaderPalette(Color(0xFF171717), Color(0xFFE7E2D8), Color(0xFFAAA49A), Color(0xFF292826))
+    ReaderTheme.SEPIA -> ReaderPalette(Color(0xFFF2E8CF), Color(0xFF43392A), Color(0xFF786A55), Color(0xFFE3D5B5))
+    ReaderTheme.LINEN -> ReaderPalette(Color(0xFFFAF0E6), Color(0xFF5C4033), Color(0xFF80695C), Color(0xFFE9DCCE))
+    ReaderTheme.GREEN -> ReaderPalette(Color(0xFFC7EDCC), Color(0xFF2F4F4F), Color(0xFF4E6954), Color(0xFFACD5B2))
+    ReaderTheme.GRAY -> ReaderPalette(Color(0xFFECECEC), Color(0xFF333333), Color(0xFF686868), Color(0xFFD5D5D5))
+    ReaderTheme.SYSTEM -> readerPalette(if (darkSystem) ReaderTheme.DARK else ReaderTheme.LIGHT, darkSystem)
 }
 
 @Composable
