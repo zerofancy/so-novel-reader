@@ -22,11 +22,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -52,6 +49,10 @@ internal fun PagedReader(
     onFragmentConsumed: () -> Unit,
     onPreviousChapter: () -> Unit,
     onNextChapter: () -> Unit,
+    previousChapter: ReaderChapterContent? = null,
+    nextChapter: ReaderChapterContent? = null,
+    chapterKey: String = chapterTitle,
+    navigationEnabled: Boolean = true,
     activeSentence: TtsSentenceLocator? = null,
     onManualNavigation: () -> Unit = {},
 ) {
@@ -64,62 +65,50 @@ internal fun PagedReader(
         val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
         val spacingPx = with(density) { settings.paragraphSpacingDp.dp.roundToPx() }
         val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
-        val chapterTitleStyle = indentStyle.copy(
-            fontSize = (settings.fontSizeSp * 1.3f).sp,
-            fontWeight = FontWeight.Bold,
-        )
-        val titleReservedPx = remember(chapterTitle, widthPx, chapterTitleStyle, spacingPx) {
-            val layout = textMeasurer.measure(
-                text = AnnotatedString(chapterTitle),
-                style = chapterTitleStyle,
-                overflow = TextOverflow.Clip,
-                softWrap = true,
-                constraints = Constraints(maxWidth = widthPx),
-            )
-            // 标题高度 + 标题与正文之间的段落间距
-            layout.size.height + if (layout.size.height > 0) spacingPx else 0
+        val pages = rememberChapterPages(content, chapterTitle, settings, widthPx, heightPx, spacingPx,
+            lineHeightPx, indentStyle, noIndentStyle, textMeasurer)
+        val previousPages = previousChapter?.let {
+            rememberChapterPages(it.content, it.title, settings, widthPx, heightPx, spacingPx,
+                lineHeightPx, indentStyle, noIndentStyle, textMeasurer)
+        }.orEmpty()
+        val nextPages = nextChapter?.let {
+            rememberChapterPages(it.content, it.title, settings, widthPx, heightPx, spacingPx,
+                lineHeightPx, indentStyle, noIndentStyle, textMeasurer)
+        }.orEmpty()
+        val window = remember(pages, previousPages, nextPages, chapterTitle, previousChapter, nextChapter) {
+            chapterPageWindow(pages, chapterTitle, previousPages, previousChapter?.title, nextPages, nextChapter?.title)
         }
-        val pages = remember(content, widthPx, heightPx, spacingPx, indentStyle, noIndentStyle, textMeasurer, titleReservedPx) {
-            paginateReaderContent(content, widthPx, heightPx, spacingPx, firstPageReservedHeightPx = titleReservedPx) { text, availableWidth, availableHeight, isStartOfBlock ->
-                val maxLines = (availableHeight / lineHeightPx).coerceAtLeast(0)
-                if (maxLines == 0) {
-                    MeasuredTextSlice(0, 0)
-                } else {
-                    val layout = textMeasurer.measure(
-                        text = AnnotatedString(text),
-                        style = if (isStartOfBlock) indentStyle else noIndentStyle,
-                        overflow = TextOverflow.Clip,
-                        softWrap = true,
-                        maxLines = maxLines,
-                        constraints = Constraints(maxWidth = availableWidth),
-                    )
-                    val count = if (layout.lineCount == 0) 0 else layout.getLineEnd(layout.lineCount - 1, visibleEnd = false)
-                    MeasuredTextSlice(count, layout.size.height)
-                }
-            }
-        }
+        val pageOffset = if (previousPages.isEmpty()) 0 else 1
         val targetProgress = fragment?.let(content.anchors::get)?.let {
             content.progressAt(it.blockIndex, it.fractionInBlock)
         } ?: initialFraction
-        val pagerState = remember(content, jumpToken) {
+        val pagerState = remember(chapterKey, content, pages, jumpToken) {
             PagerState(
-                currentPage = pages.pageForProgress(targetProgress),
-                pageCount = pages::size,
+                currentPage = pageOffset + pages.pageForProgress(targetProgress),
+                pageCount = window::size,
             )
         }
         val scope = rememberCoroutineScope()
-        var restored by remember(content) { mutableStateOf(false) }
+        var restored by remember(chapterKey, content) { mutableStateOf(false) }
 
-        LaunchedEffect(pages, jumpToken) {
+        LaunchedEffect(pagerState) {
             restored = false
-            pagerState.scrollToPage(pages.pageForProgress(targetProgress))
+            pagerState.scrollToPage(pageOffset + pages.pageForProgress(targetProgress))
             restored = true
             if (fragment != null) onFragmentConsumed()
         }
         LaunchedEffect(pagerState, pages, restored) {
             if (!restored) return@LaunchedEffect
-            snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { page ->
-                pages.getOrNull(page)?.let { onProgress(it.startProgress) }
+            snapshotFlow { pagerState.settledPage to pagerState.isScrollInProgress }.distinctUntilChanged().collect { (page, scrolling) ->
+                if (!scrolling) {
+                    window.getOrNull(page)?.let {
+                        when (it.chapterOffset) {
+                            -1 -> onPreviousChapter()
+                            1 -> onNextChapter()
+                            else -> onProgress(it.page.startProgress)
+                        }
+                    }
+                }
             }
         }
         LaunchedEffect(activeSentence, pages) {
@@ -129,32 +118,34 @@ internal fun PagedReader(
                     item.blockIndex == sentence.blockIndex && sentence.startOffset in item.startOffset until item.endOffset
                 }
             }
-            if (targetPage >= 0 && targetPage != pagerState.currentPage) pagerState.animateScrollToPage(targetPage)
+            if (targetPage >= 0 && targetPage + pageOffset != pagerState.currentPage) pagerState.animateScrollToPage(targetPage + pageOffset)
         }
 
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize().pointerInput(pages, hasPreviousChapter, hasNextChapter) {
+            userScrollEnabled = navigationEnabled,
+            modifier = Modifier.fillMaxSize().pointerInput(pagerState, window, navigationEnabled, hasPreviousChapter, hasNextChapter) {
                 detectHorizontalReaderGestures(
                     currentPage = { pagerState.currentPage },
-                    lastPage = pages.lastIndex,
+                    lastPage = window.lastIndex,
                     onTap = { position ->
+                        if (!navigationEnabled) return@detectHorizontalReaderGestures
                         when {
                             position.x < size.width * 0.32f -> scope.launch {
                                 onManualNavigation()
                                 if (pagerState.currentPage > 0) pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                else if (hasPreviousChapter) onPreviousChapter()
+                                else if (navigationEnabled && hasPreviousChapter && previousChapter == null) onPreviousChapter()
                             }
                             position.x > size.width * 0.68f -> scope.launch {
                                 onManualNavigation()
-                                if (pagerState.currentPage < pages.lastIndex) pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                else if (hasNextChapter) onNextChapter()
+                                if (pagerState.currentPage < window.lastIndex) pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                else if (navigationEnabled && hasNextChapter && nextChapter == null) onNextChapter()
                             }
                             else -> onToggleControls()
                         }
                     },
-                    onSwipePastStart = { if (hasPreviousChapter) onPreviousChapter() },
-                    onSwipePastEnd = { if (hasNextChapter) onNextChapter() },
+                    onSwipePastStart = { if (navigationEnabled && hasPreviousChapter && previousChapter == null) onPreviousChapter() },
+                    onSwipePastEnd = { if (navigationEnabled && hasNextChapter && nextChapter == null) onNextChapter() },
                     onUserSwipe = onManualNavigation,
                 )
             },
@@ -163,18 +154,19 @@ internal fun PagedReader(
                 Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
                 verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
             ) {
-                if (pageIndex == 0) {
+                val entry = window[pageIndex]
+                if (entry.title != null) {
                     Text(
-                        text = chapterTitle,
+                        text = entry.title,
                         fontSize = (settings.fontSizeSp * 1.3f).sp,
                         fontWeight = FontWeight.Bold,
                         color = palette.foreground,
                     )
                 }
-                pages[pageIndex].items.forEach { item ->
+                entry.page.items.forEach { item ->
                     when (item) {
                         is ReaderPageItem.Text -> {
-                            val activeRange = activeRangeInSlice(activeSentence, item)
+                            val activeRange = activeRangeInSlice(activeSentence.takeIf { entry.chapterOffset == 0 }, item)
                             Text(
                                 text = highlightedText(item.text, activeRange, palette),
                                 style = if (item.startOffset == 0) indentStyle else noIndentStyle,

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -383,6 +384,8 @@ data class ReaderUiState(
     val parsedBook: ParsedBook? = null,
     val locator: ReaderLocator? = null,
     val content: ReaderContent? = null,
+    val previousChapter: ReaderChapterContent? = null,
+    val nextChapter: ReaderChapterContent? = null,
     val contentLoading: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
     val error: String? = null,
@@ -453,14 +456,15 @@ class ReaderViewModel(
         }
     }
 
-    fun goToChapter(index: Int, fraction: Float = 0f) {
+    fun goToChapter(index: Int, fraction: Float = 0f, preservePage: Boolean = false) {
         val book = mutableState.value.parsedBook ?: return
         if (index !in book.chapters.indices) return
-        updateLocator(ReaderLocator(book.chapters[index].href, index, fraction), true)
-        loadChapter(book, index)
+        if (preservePage && mutableState.value.contentLoading) return
+        loadChapter(book, index, fraction, preservePage)
     }
 
     fun updateFraction(fraction: Float) {
+        if (mutableState.value.contentLoading) return
         val current = mutableState.value.locator ?: return
         updateLocator(current.copy(chapterFraction = fraction.coerceIn(0f, 1f)), false)
     }
@@ -486,29 +490,54 @@ class ReaderViewModel(
         }
     }
 
-    private fun loadChapter(book: ParsedBook, index: Int) {
+    private suspend fun readCachedChapter(book: ParsedBook, index: Int): ReaderContent {
+        val chapter = book.chapters[index]
+        return chapterCache[chapter.href] ?: container.bookRepository.readChapter(book, chapter).also {
+            chapterCache[chapter.href] = it
+        }
+    }
+
+    private suspend fun readAdjacentChapter(book: ParsedBook, index: Int): ReaderChapterContent? {
+        val chapter = book.chapters.getOrNull(index) ?: return null
+        return try {
+            ReaderChapterContent(chapter.title, readCachedChapter(book, index))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // A damaged neighboring chapter must not prevent reading the current one.
+            null
+        }
+    }
+
+    private fun loadChapter(book: ParsedBook, index: Int, fraction: Float? = null, preservePage: Boolean = false) {
         val chapter = book.chapters[index]
         chapterJob?.cancel()
-        chapterCache[chapter.href]?.let { cached ->
-            mutableState.update { it.copy(content = cached, contentLoading = false, error = null) }
-            return
-        }
-        mutableState.update { it.copy(content = null, contentLoading = true, error = null) }
+        // Keep the visible page until the new chapter and its boundary previews are ready.
+        mutableState.update { it.copy(content = it.content.takeIf { preservePage }, contentLoading = true, error = null) }
         chapterJob = viewModelScope.launch {
             try {
-                val content = container.bookRepository.readChapter(book, chapter)
-                chapterCache[chapter.href] = content
-                if (mutableState.value.locator?.chapterHref == chapter.href) {
-                    mutableState.update { it.copy(content = content, contentLoading = false) }
+                val content = readCachedChapter(book, index)
+                val previous = readAdjacentChapter(book, index - 1)
+                val next = readAdjacentChapter(book, index + 1)
+                val locator = ReaderLocator(
+                    chapter.href, index,
+                    fraction ?: mutableState.value.locator?.chapterFraction ?: 0f,
+                )
+                mutableState.update {
+                    it.copy(
+                        locator = locator,
+                        content = content,
+                        previousChapter = previous,
+                        nextChapter = next,
+                        contentLoading = false,
+                    )
                 }
+                updateLocator(locator, fraction != null)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                if (mutableState.value.locator?.chapterHref == chapter.href) {
-                    mutableState.update {
-                        it.copy(
-                            contentLoading = false,
-                            error = error.message ?: "无法解析本章内容",
-                        )
-                    }
+                mutableState.update {
+                    it.copy(contentLoading = false, error = error.message ?: "无法解析本章内容")
                 }
             }
         }

@@ -1,6 +1,9 @@
 package top.ntutn.sonovelreader.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -45,6 +48,9 @@ class ReaderScreenTest {
             MaterialTheme {
                 SettingsScreen(
                     settings = settings.value,
+                    showAiOperationEntry = false,
+                    aiAllowOperation = false,
+                    onOpenAiOperationSettings = {},
                     onModeChange = {},
                     onFontSizeChange = {},
                     onLineHeightChange = {},
@@ -89,6 +95,7 @@ class ReaderScreenTest {
                     ),
                     settings = ReaderSettings(),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,
@@ -119,6 +126,7 @@ class ReaderScreenTest {
                     content = ReaderContent(listOf(ReaderBlock.Text("原生横向正文"))),
                     settings = ReaderSettings(readingMode = ReadingMode.PAGED),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,
@@ -143,6 +151,125 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun smoothReaderAnimatesAcrossChaptersInBothDirections() {
+        assertChapterTurnsAnimate(ReadingMode.PAGED)
+    }
+
+    @Test
+    fun flipReaderAnimatesAcrossChaptersInBothDirections() {
+        assertChapterTurnsAnimate(ReadingMode.FLIP)
+    }
+
+    private fun assertChapterTurnsAnimate(mode: ReadingMode) {
+        val chapterIndex = mutableStateOf(1)
+        var chapterChanges = 0
+        // Identical bodies deliberately exercise chapter identity independently of content equality.
+        val chapters = (0..2).map { ReaderChapterContent("章节 $it", ReaderContent(listOf(ReaderBlock.Text("短章节正文")))) }
+        composeRule.setContent {
+            Box(Modifier.testTag("chapter-reader")) {
+                MaterialTheme {
+                    val index = chapterIndex.value
+                    val previous = { chapterChanges++; chapterIndex.value = index - 1 }
+                    val next = { chapterChanges++; chapterIndex.value = index + 1 }
+                    if (mode == ReadingMode.PAGED) {
+                        PagedReader(
+                            content = chapters[index].content,
+                            chapterTitle = chapters[index].title,
+                            chapterKey = index.toString(),
+                            previousChapter = chapters.getOrNull(index - 1),
+                            nextChapter = chapters.getOrNull(index + 1),
+                            settings = ReaderSettings(readingMode = mode),
+                            palette = palette,
+                            initialFraction = 0f,
+                            fragment = null,
+                            jumpToken = 0,
+                            hasPreviousChapter = index > 0,
+                            hasNextChapter = index < chapters.lastIndex,
+                            onToggleControls = {},
+                            onProgress = {},
+                            onFragmentConsumed = {},
+                            onPreviousChapter = previous,
+                            onNextChapter = next,
+                        )
+                    } else {
+                        FlipReader(
+                            content = chapters[index].content,
+                            chapterTitle = chapters[index].title,
+                            chapterKey = index.toString(),
+                            previousChapter = chapters.getOrNull(index - 1),
+                            nextChapter = chapters.getOrNull(index + 1),
+                            settings = ReaderSettings(readingMode = mode),
+                            palette = palette,
+                            initialFraction = 0f,
+                            fragment = null,
+                            jumpToken = 0,
+                            hasPreviousChapter = index > 0,
+                            hasNextChapter = index < chapters.lastIndex,
+                            onToggleControls = {},
+                            onProgress = {},
+                            onFragmentConsumed = {},
+                            onPreviousChapter = previous,
+                            onNextChapter = next,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Cross forward, back, and back again to exercise rebasing and both ends of the book.
+        listOf(2, 1, 0).forEachIndexed { turn, target ->
+            composeRule.waitForIdle()
+            val origin = chapterIndex.value
+            composeRule.mainClock.autoAdvance = false
+            composeRule.onNodeWithTag("chapter-reader").performTouchInput {
+                click(Offset(width * if (target > origin) 0.9f else 0.1f, center.y))
+            }
+            composeRule.mainClock.advanceTimeBy(32)
+            composeRule.runOnIdle {
+                assertEquals("Chapter must stay unchanged while the page is turning", origin, chapterIndex.value)
+                assertEquals(turn, chapterChanges)
+            }
+            composeRule.mainClock.advanceTimeBy(1500)
+            composeRule.mainClock.autoAdvance = true
+            composeRule.waitForIdle()
+            composeRule.runOnIdle {
+                assertEquals(target, chapterIndex.value)
+                assertEquals(turn + 1, chapterChanges)
+            }
+        }
+
+        listOf(1, 2, 1).forEachIndexed { turn, target ->
+            val forward = target > chapterIndex.value
+            val reader = composeRule.onNodeWithTag("chapter-reader")
+            if (mode == ReadingMode.FLIP) {
+                // PTQ uses wall-clock time for its 70 ms drag threshold, not event timestamps.
+                reader.performTouchInput {
+                    down(Offset(width * if (forward) 0.85f else 0.15f, height * 0.75f))
+                    moveTo(Offset(width * if (forward) 0.75f else 0.25f, height * 0.75f))
+                }
+                android.os.SystemClock.sleep(100)
+                reader.performTouchInput {
+                    moveTo(Offset(width * if (forward) 0.15f else 0.85f, height * 0.75f))
+                    up()
+                }
+            } else {
+                reader.performTouchInput {
+                    swipe(
+                        start = Offset(width * if (forward) 0.85f else 0.15f, height * 0.75f),
+                        end = Offset(width * if (forward) 0.15f else 0.85f, height * 0.75f),
+                        durationMillis = 400,
+                    )
+                }
+            }
+            composeRule.waitForIdle()
+            composeRule.runOnIdle {
+                assertEquals(target, chapterIndex.value)
+                assertEquals(turn + 4, chapterChanges)
+            }
+        }
+    }
+
+    @Test
     fun verticalReaderMarksActiveTtsSentenceAsSelected() {
         composeRule.setContent {
             MaterialTheme {
@@ -150,6 +277,7 @@ class ReaderScreenTest {
                     content = ReaderContent(listOf(ReaderBlock.Text("第一句。第二句。"))),
                     settings = ReaderSettings(),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,
@@ -176,6 +304,7 @@ class ReaderScreenTest {
                     content = ReaderContent(listOf(ReaderBlock.Text("分页第一句。分页第二句。"))),
                     settings = ReaderSettings(readingMode = ReadingMode.PAGED),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,
@@ -204,6 +333,7 @@ class ReaderScreenTest {
                     content = ReaderContent(listOf(ReaderBlock.Text("短章节"))),
                     settings = ReaderSettings(),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,
@@ -250,6 +380,7 @@ class ReaderScreenTest {
                     content = ReaderContent(listOf(ReaderBlock.Text("长章节".repeat(4_000)))),
                     settings = ReaderSettings(),
                     palette = palette,
+                    chapterTitle = "测试章节",
                     initialFraction = 0f,
                     fragment = null,
                     jumpToken = 0,

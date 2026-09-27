@@ -157,14 +157,16 @@ fun ReaderScreen(
                 val onPreviousChapter = {
                     followSuspended = true
                     pendingFragment = null
-                    jumpToken++
-                    viewModel.goToChapter(locator.chapterIndex - 1, 1f)
+                    val preservePage = state.settings.readingMode != ReadingMode.SCROLL
+                    if (!preservePage) jumpToken++
+                    viewModel.goToChapter(locator.chapterIndex - 1, 1f, preservePage = preservePage)
                 }
                 val onNextChapter = {
                     followSuspended = true
                     pendingFragment = null
-                    jumpToken++
-                    viewModel.goToChapter(locator.chapterIndex + 1, 0f)
+                    val preservePage = state.settings.readingMode != ReadingMode.SCROLL
+                    if (!preservePage) jumpToken++
+                    viewModel.goToChapter(locator.chapterIndex + 1, 0f, preservePage = preservePage)
                 }
 
                 LaunchedEffect(activeSentence?.locator, content, locator.chapterIndex, followSuspended) {
@@ -207,6 +209,10 @@ fun ReaderScreen(
                     )
                     ReadingMode.PAGED ->
                         PagedReader(
+                        chapterKey = chapter.href,
+                        navigationEnabled = !state.contentLoading,
+                        previousChapter = state.previousChapter,
+                        nextChapter = state.nextChapter,
                         content = content,
                         settings = state.settings,
                         palette = palette,
@@ -226,6 +232,10 @@ fun ReaderScreen(
                     )
                     ReadingMode.FLIP ->
                         FlipReader(
+                        chapterKey = chapter.href,
+                        navigationEnabled = !state.contentLoading,
+                        previousChapter = state.previousChapter,
+                        nextChapter = state.nextChapter,
                         content = content,
                         settings = state.settings,
                         palette = palette,
