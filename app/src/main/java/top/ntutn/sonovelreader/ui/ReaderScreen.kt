@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Pause
@@ -34,11 +35,13 @@ import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -55,7 +58,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
@@ -64,6 +66,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import top.ntutn.sonovelreader.data.ReaderLocator
 import top.ntutn.sonovelreader.data.ReadingMode
 import top.ntutn.sonovelreader.tts.TtsPlaybackStatus
 import top.ntutn.sonovelreader.tts.progressAt
@@ -81,6 +84,11 @@ fun ReaderScreen(
     var showToc by remember { mutableStateOf(false) }
     var pendingFragment by remember { mutableStateOf<String?>(null) }
     var jumpToken by remember { mutableIntStateOf(0) }
+    var panelTab by remember { mutableIntStateOf(0) }
+    val tocListState = rememberLazyListState()
+    val bookmarkListState = rememberLazyListState()
+    var bookmarkSnapshot by remember { mutableStateOf<ReaderLocator?>(null) }
+    var bookmarkTitle by remember { mutableStateOf("") }
     val view = LocalView.current
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -145,6 +153,14 @@ fun ReaderScreen(
         if (showToc) showToc = false else onBack()
     }
 
+    bookmarkSnapshot?.let { snapshot ->
+        val defaultName = bookmarkTitle.let { title ->
+            title.substring(0, title.offsetByCodePoints(0, minOf(50, title.codePointCount(0, title.length))))
+        }
+        BookmarkNameDialog(defaultName, false, { bookmarkSnapshot = null },
+            { viewModel.saveBookmark(it, snapshot, bookmarkTitle) }, onMessage)
+    }
+
     Box(Modifier.fillMaxSize().background(palette.background)) {
         when {
             state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
@@ -196,11 +212,13 @@ fun ReaderScreen(
                         chapterTitle = chapter.title,
                         initialFraction = locator.chapterFraction,
                         fragment = pendingFragment,
-                        jumpToken = jumpToken,
+                        jumpToken = jumpToken + state.bookmarkJumpToken,
                         hasPreviousChapter = locator.chapterIndex > 0,
                         hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                         onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = viewModel::updateFraction,
+                        onProgress = { fraction ->
+                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                        },
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
@@ -219,11 +237,13 @@ fun ReaderScreen(
                         chapterTitle = chapter.title,
                         initialFraction = locator.chapterFraction,
                         fragment = pendingFragment,
-                        jumpToken = jumpToken,
+                        jumpToken = jumpToken + state.bookmarkJumpToken,
                         hasPreviousChapter = locator.chapterIndex > 0,
                         hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                         onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = viewModel::updateFraction,
+                        onProgress = { fraction ->
+                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                        },
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
@@ -242,11 +262,13 @@ fun ReaderScreen(
                         chapterTitle = chapter.title,
                         initialFraction = locator.chapterFraction,
                         fragment = pendingFragment,
-                        jumpToken = jumpToken,
+                        jumpToken = jumpToken + state.bookmarkJumpToken,
                         hasPreviousChapter = locator.chapterIndex > 0,
                         hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                         onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = viewModel::updateFraction,
+                        onProgress = { fraction ->
+                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                        },
                         onFragmentConsumed = { pendingFragment = null },
                         onPreviousChapter = onPreviousChapter,
                         onNextChapter = onNextChapter,
@@ -276,6 +298,10 @@ fun ReaderScreen(
                                 }
                             },
                             actions = {
+                                IconButton(enabled = !state.contentLoading, onClick = {
+                                    bookmarkSnapshot = locator
+                                    bookmarkTitle = chapter.title.ifBlank { "第 ${locator.chapterIndex + 1} 章" }
+                                }) { Icon(Icons.Default.BookmarkAdd, contentDescription = "添加书签") }
                                 IconButton(onClick = { showToc = true }) {
                                     Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "目录")
                                 }
@@ -349,23 +375,28 @@ fun ReaderScreen(
 
                 if (showToc) {
                     ModalBottomSheet(onDismissRequest = { showToc = false }) {
-                        val tocListState = rememberLazyListState()
                         val currentTocIndex = book.toc.indexOfFirst { it.href == chapter.href }
                         
-                        LaunchedEffect(showToc) {
-                            if (showToc && currentTocIndex >= 0) {
+                        LaunchedEffect(showToc, panelTab) {
+                            if (showToc && panelTab == 0 && currentTocIndex >= 0) {
                                 tocListState.scrollToItem(currentTocIndex)
                             }
                         }
                         
-                        Text(
-                            "目录",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                        )
-                        HorizontalDivider()
-                        if (book.toc.isEmpty()) {
+                        if (state.contentLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        TabRow(selectedTabIndex = panelTab) {
+                            Tab(selected = panelTab == 0, onClick = { panelTab = 0 }, text = { Text("目录") })
+                            Tab(selected = panelTab == 1, onClick = { panelTab = 1 }, text = { Text("书签") })
+                        }
+                        if (panelTab == 1) {
+                            BookmarkList(state, bookmarkListState, viewModel, onJump = { bookmark ->
+                                followSuspended = true
+                                pendingFragment = null
+                                viewModel.jumpToBookmark(bookmark) { error ->
+                                    if (error == null) showToc = false else onMessage(error)
+                                }
+                            }, onMessage = onMessage)
+                        } else if (book.toc.isEmpty()) {
                             Text("这本书没有提供目录", Modifier.padding(24.dp))
                         } else {
                             LazyColumn(Modifier.fillMaxWidth(), state = tocListState) {

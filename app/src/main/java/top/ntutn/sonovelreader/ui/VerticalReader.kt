@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -119,12 +120,21 @@ internal fun VerticalReader(
         label = "chapterPullOffset",
     )
 
+    var positionRestored by remember(content, jumpToken) { mutableStateOf(false) }
     LaunchedEffect(content, jumpToken) {
+        positionRestored = false
         val target = fragment?.let(content.anchors::get) ?: content.positionAt(initialFraction)
         listState.scrollToItem((target.blockIndex + 2).coerceAtLeast(0))
+        val targetIndex = target.blockIndex + 2
+        val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+        if (item != null && target.fractionInBlock > 0f) {
+            listState.scrollToItem(targetIndex, (item.size * target.fractionInBlock).toInt())
+        }
+        positionRestored = true
         if (fragment != null) onFragmentConsumed()
     }
-    LaunchedEffect(content, listState) {
+    LaunchedEffect(content, listState, jumpToken, positionRestored) {
+        if (!positionRestored) return@LaunchedEffect
         snapshotFlow {
             listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 2..content.blocks.size + 1 }
         }.distinctUntilChanged().collect { visible ->

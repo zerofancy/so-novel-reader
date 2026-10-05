@@ -70,3 +70,21 @@ data class BookWithProgress(
     @Relation(parentColumn = "id", entityColumn = "bookId")
     val progress: ReadingProgressEntity?,
 )
+
+@Entity(
+    tableName = "bookmarks",
+    indices = [Index(value = ["bookId", "createdAt", "id"])],
+    foreignKeys = [ForeignKey(entity = BookEntity::class, parentColumns = ["id"],
+        childColumns = ["bookId"], onDelete = ForeignKey.CASCADE)],
+)
+data class BookmarkEntity(
+    @PrimaryKey val id: String,
+    val bookId: String,
+    val name: String,
+    val chapterHref: String,
+    val chapterIndex: Int,
+    val chapterTitle: String,
+    val chapterFraction: Float,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
