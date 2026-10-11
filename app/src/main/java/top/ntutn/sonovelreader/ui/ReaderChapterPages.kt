@@ -20,7 +20,12 @@ internal data class ChapterPage(
     val page: ReaderPage,
     val title: String?,
     val chapterOffset: Int,
+    val pageNumber: Int = 1,
+    val pageCount: Int = 1,
+    val chapterTitle: String = title.orEmpty(),
 )
+
+internal fun ChapterPage.displayInfo() = ReaderDisplayInfo(chapterOffset, pageNumber, pageCount)
 
 internal fun chapterPageWindow(
     pages: List<ReaderPage>,
@@ -30,9 +35,9 @@ internal fun chapterPageWindow(
     next: List<ReaderPage>,
     nextTitle: String?,
 ): List<ChapterPage> = buildList {
-    previous.lastOrNull()?.let { add(ChapterPage(it, previousTitle.takeIf { previous.size == 1 }, -1)) }
-    pages.forEachIndexed { index, page -> add(ChapterPage(page, title.takeIf { index == 0 }, 0)) }
-    next.firstOrNull()?.let { add(ChapterPage(it, nextTitle, 1)) }
+    previous.lastOrNull()?.let { add(ChapterPage(it, previousTitle.takeIf { previous.size == 1 }, -1, previous.size, previous.size, previousTitle.orEmpty())) }
+    pages.forEachIndexed { index, page -> add(ChapterPage(page, title.takeIf { index == 0 }, 0, index + 1, pages.size, title)) }
+    next.firstOrNull()?.let { add(ChapterPage(it, nextTitle, 1, 1, next.size, nextTitle.orEmpty())) }
 }
 
 @Composable

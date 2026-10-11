@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -57,14 +60,17 @@ internal fun FlipReader(
     navigationEnabled: Boolean = true,
     activeSentence: TtsSentenceLocator? = null,
     onManualNavigation: () -> Unit = {},
+    onDisplayInfo: (ReaderDisplayInfo) -> Unit = {},
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
         val indentStyle = readerTextStyle(settings, palette.foreground, applyIndent = true)
         val noIndentStyle = readerTextStyle(settings, palette.foreground, applyIndent = false)
-        val widthPx = with(density) { (maxWidth - 44.dp).roundToPx().coerceAtLeast(1) }
-        val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
+        val padding = LocalReaderPadding.current
+        val direction = LocalLayoutDirection.current
+        val widthPx = with(density) { (maxWidth - padding.calculateStartPadding(direction) - padding.calculateEndPadding(direction)).roundToPx().coerceAtLeast(1) }
+        val heightPx = with(density) { (maxHeight - padding.calculateTopPadding() - padding.calculateBottomPadding()).roundToPx().coerceAtLeast(1) }
         val spacingPx = with(density) { settings.paragraphSpacingDp.dp.roundToPx() }
         val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
         val pages = rememberChapterPages(content, chapterTitle, settings, widthPx, heightPx, spacingPx,
@@ -85,8 +91,8 @@ internal fun FlipReader(
             content.progressAt(it.blockIndex, it.fractionInBlock)
         } ?: initialFraction
         val initialPage = pageOffset + pages.pageForProgress(targetProgress)
-        var currentPage by remember(chapterKey, content, pages, jumpToken) { mutableIntStateOf(initialPage) }
-        var ptqStateHolder by remember(chapterKey, content, pages, jumpToken) {
+        var currentPage by remember(chapterKey, content, pages, pageOffset, window.size, jumpToken) { mutableIntStateOf(initialPage) }
+        var ptqStateHolder by remember(chapterKey, content, pages, pageOffset, window.size, jumpToken) {
             mutableStateOf(
                 PTQBookPageViewState(
                     pageCount = window.size,
@@ -99,7 +105,8 @@ internal fun FlipReader(
             currentPage = initialPage
             if (fragment != null) onFragmentConsumed()
         }
-        LaunchedEffect(chapterKey, currentPage) {
+        LaunchedEffect(chapterKey, currentPage, window, onDisplayInfo) {
+            window.getOrNull(currentPage)?.let { onDisplayInfo(it.displayInfo()) }
             window.getOrNull(currentPage)?.takeIf { it.chapterOffset == 0 }?.let { onProgress(it.page.startProgress) }
         }
         LaunchedEffect(activeSentence, pages) {
@@ -124,7 +131,7 @@ internal fun FlipReader(
             disabled = false,
         )
 
-        key(chapterKey, pages, jumpToken) {
+        key(chapterKey, pages, pageOffset, window.size, jumpToken) {
             PTQBookPageView(
                 modifier = Modifier.fillMaxSize(),
                 state = ptqStateHolder,
@@ -159,11 +166,14 @@ internal fun FlipReader(
                     }
                 }
                 contents { page, refresh ->
+                    val entry = window.getOrNull(page) ?: window[initialPage]
+                    // Observe here so device/visibility updates also invoke the texture refresh below.
+                    val decoration = LocalReaderPageDecoration.current
                     Box(
                         Modifier.fillMaxSize().background(palette.background)
                     ) {
                         FlipPageContent(
-                            entry = window.getOrNull(page) ?: window[initialPage],
+                            entry = entry,
                             settings = settings,
                             palette = palette,
                             indentStyle = indentStyle,
@@ -171,6 +181,8 @@ internal fun FlipReader(
                             density = density,
                             activeSentence = activeSentence,
                         )
+                        // Cached curl pages are drawn, but only the active page is accessible.
+                        ReaderPageInfo(entry, accessible = page == currentPage, decoration = decoration)
                     }
                     refresh()
                 }
@@ -190,7 +202,7 @@ private fun FlipPageContent(
     activeSentence: TtsSentenceLocator?,
 ) {
     Column(
-        Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+        Modifier.fillMaxSize().padding(LocalReaderPadding.current),
         verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
     ) {
         if (entry.title != null) {

@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,6 +82,7 @@ fun ReaderScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
+    val controlsTransition = updateTransition(controlsVisible, label = "reader-controls")
     var showToc by remember { mutableStateOf(false) }
     var pendingFragment by remember { mutableStateOf<String?>(null) }
     var jumpToken by remember { mutableIntStateOf(0) }
@@ -203,81 +205,104 @@ fun ReaderScreen(
                     }
                 }
 
-                when (state.settings.readingMode) {
-                    ReadingMode.SCROLL ->
-                    VerticalReader(
-                        content = content,
-                        settings = state.settings,
-                        palette = palette,
-                        chapterTitle = chapter.title,
-                        initialFraction = locator.chapterFraction,
-                        fragment = pendingFragment,
-                        jumpToken = jumpToken + state.bookmarkJumpToken,
-                        hasPreviousChapter = locator.chapterIndex > 0,
-                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
-                        onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = { fraction ->
-                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
-                        },
-                        onFragmentConsumed = { pendingFragment = null },
-                        onPreviousChapter = onPreviousChapter,
-                        onNextChapter = onNextChapter,
-                        activeSentence = if (followSuspended) null else activeSentence?.locator,
-                        onManualNavigation = { followSuspended = true },
-                    )
-                    ReadingMode.PAGED ->
-                        PagedReader(
-                        chapterKey = chapter.href,
-                        navigationEnabled = !state.contentLoading,
-                        previousChapter = state.previousChapter,
-                        nextChapter = state.nextChapter,
-                        content = content,
-                        settings = state.settings,
-                        palette = palette,
-                        chapterTitle = chapter.title,
-                        initialFraction = locator.chapterFraction,
-                        fragment = pendingFragment,
-                        jumpToken = jumpToken + state.bookmarkJumpToken,
-                        hasPreviousChapter = locator.chapterIndex > 0,
-                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
-                        onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = { fraction ->
-                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
-                        },
-                        onFragmentConsumed = { pendingFragment = null },
-                        onPreviousChapter = onPreviousChapter,
-                        onNextChapter = onNextChapter,
-                        activeSentence = if (followSuspended) null else activeSentence?.locator,
-                        onManualNavigation = { followSuspended = true },
-                    )
-                    ReadingMode.FLIP ->
-                        FlipReader(
-                        chapterKey = chapter.href,
-                        navigationEnabled = !state.contentLoading,
-                        previousChapter = state.previousChapter,
-                        nextChapter = state.nextChapter,
-                        content = content,
-                        settings = state.settings,
-                        palette = palette,
-                        chapterTitle = chapter.title,
-                        initialFraction = locator.chapterFraction,
-                        fragment = pendingFragment,
-                        jumpToken = jumpToken + state.bookmarkJumpToken,
-                        hasPreviousChapter = locator.chapterIndex > 0,
-                        hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
-                        onToggleControls = { controlsVisible = !controlsVisible },
-                        onProgress = { fraction ->
-                            viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
-                        },
-                        onFragmentConsumed = { pendingFragment = null },
-                        onPreviousChapter = onPreviousChapter,
-                        onNextChapter = onNextChapter,
-                        activeSentence = if (followSuspended) null else activeSentence?.locator,
-                        onManualNavigation = { followSuspended = true },
-                    )
+                // A new state holder isolates callbacks from obsolete content/settings/jumps.
+                val displayInfo = remember(book.book.id, content, chapter.href, state.settings, jumpToken, state.bookmarkJumpToken) {
+                    mutableStateOf<ReaderDisplayInfo?>(null)
+                }
+                val onDisplayInfo = remember(displayInfo) { { info: ReaderDisplayInfo -> displayInfo.value = info } }
+                val displayChapterIndex = (locator.chapterIndex + (displayInfo.value?.chapterOffset ?: 0))
+                    .coerceIn(book.chapters.indices)
+                val displayTitle = book.chapters[displayChapterIndex].title.ifBlank { "第 ${displayChapterIndex + 1} 章" }
+                ReaderInfoLayout(
+                    visible = !controlsTransition.currentState && !controlsTransition.targetState,
+                    chapterTitle = displayTitle,
+                    scrolling = state.settings.readingMode == ReadingMode.SCROLL,
+                    info = displayInfo.value,
+                    palette = palette,
+                    chapterTitles = (-1..1).mapNotNull { offset ->
+                        val index = locator.chapterIndex + offset
+                        book.chapters.getOrNull(index)?.let { offset to it.title.ifBlank { "第 ${index + 1} 章" } }
+                    }.toMap(),
+                ) {
+                    when (state.settings.readingMode) {
+                        ReadingMode.SCROLL ->
+                        VerticalReader(
+                            onDisplayInfo = onDisplayInfo,
+                            content = content,
+                            settings = state.settings,
+                            palette = palette,
+                            chapterTitle = chapter.title,
+                            initialFraction = locator.chapterFraction,
+                            fragment = pendingFragment,
+                            jumpToken = jumpToken + state.bookmarkJumpToken,
+                            hasPreviousChapter = locator.chapterIndex > 0,
+                            hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                            onToggleControls = { controlsVisible = !controlsVisible },
+                            onProgress = { fraction ->
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                            },
+                            onFragmentConsumed = { pendingFragment = null },
+                            onPreviousChapter = onPreviousChapter,
+                            onNextChapter = onNextChapter,
+                            activeSentence = if (followSuspended) null else activeSentence?.locator,
+                            onManualNavigation = { followSuspended = true },
+                        )
+                        ReadingMode.PAGED ->
+                            PagedReader(
+                            onDisplayInfo = onDisplayInfo,
+                            chapterKey = chapter.href,
+                            navigationEnabled = !state.contentLoading,
+                            previousChapter = state.previousChapter,
+                            nextChapter = state.nextChapter,
+                            content = content,
+                            settings = state.settings,
+                            palette = palette,
+                            chapterTitle = chapter.title,
+                            initialFraction = locator.chapterFraction,
+                            fragment = pendingFragment,
+                            jumpToken = jumpToken + state.bookmarkJumpToken,
+                            hasPreviousChapter = locator.chapterIndex > 0,
+                            hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                            onToggleControls = { controlsVisible = !controlsVisible },
+                            onProgress = { fraction ->
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                            },
+                            onFragmentConsumed = { pendingFragment = null },
+                            onPreviousChapter = onPreviousChapter,
+                            onNextChapter = onNextChapter,
+                            activeSentence = if (followSuspended) null else activeSentence?.locator,
+                            onManualNavigation = { followSuspended = true },
+                        )
+                        ReadingMode.FLIP ->
+                            FlipReader(
+                            onDisplayInfo = onDisplayInfo,
+                            chapterKey = chapter.href,
+                            navigationEnabled = !state.contentLoading,
+                            previousChapter = state.previousChapter,
+                            nextChapter = state.nextChapter,
+                            content = content,
+                            settings = state.settings,
+                            palette = palette,
+                            chapterTitle = chapter.title,
+                            initialFraction = locator.chapterFraction,
+                            fragment = pendingFragment,
+                            jumpToken = jumpToken + state.bookmarkJumpToken,
+                            hasPreviousChapter = locator.chapterIndex > 0,
+                            hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
+                            onToggleControls = { controlsVisible = !controlsVisible },
+                            onProgress = { fraction ->
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                            },
+                            onFragmentConsumed = { pendingFragment = null },
+                            onPreviousChapter = onPreviousChapter,
+                            onNextChapter = onNextChapter,
+                            activeSentence = if (followSuspended) null else activeSentence?.locator,
+                            onManualNavigation = { followSuspended = true },
+                        )
+                    }
                 }
 
-                AnimatedVisibility(controlsVisible, Modifier.align(Alignment.TopCenter)) {
+                controlsTransition.AnimatedVisibility(visible = { it }, modifier = Modifier.align(Alignment.TopCenter)) {
                     Surface(color = palette.background, tonalElevation = 3.dp, shadowElevation = 3.dp) {
                         TopAppBar(
                             title = {
@@ -316,7 +341,7 @@ fun ReaderScreen(
                     }
                 }
 
-                AnimatedVisibility(controlsVisible, Modifier.align(Alignment.BottomCenter)) {
+                controlsTransition.AnimatedVisibility(visible = { it }, modifier = Modifier.align(Alignment.BottomCenter)) {
                     BottomAppBar(
                         modifier = Modifier.navigationBarsPadding(),
                         containerColor = palette.background,

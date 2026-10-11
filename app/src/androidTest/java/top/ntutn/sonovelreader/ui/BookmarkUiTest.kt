@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import org.junit.Assert.*
@@ -63,6 +64,14 @@ class BookmarkUiTest {
                 rule.waitUntil(5000) { vm.state.value.bookmarkJumpToken == prior + 1 }
                 rule.waitForIdle()
                 rule.runOnIdle { assertEquals(0, vm.state.value.locator?.chapterIndex) }
+                rule.onNodeWithTag("reader-layout").performTouchInput { click(center) }
+                rule.onAllNodesWithTag("reader-info-chapter").filterToOne(SemanticsMatcher("visible page") { it.boundsInRoot.width > 0f && it.boundsInRoot.height > 0f }).assertIsDisplayed()
+                rule.onAllNodesWithTag("reader-info-progress").filterToOne(SemanticsMatcher("visible page") { it.boundsInRoot.width > 0f && it.boundsInRoot.height > 0f }).assertIsDisplayed()
+                java.io.File(app.externalCacheDir, "reader-info-$mode.png").outputStream().use {
+                    rule.onNodeWithTag("reader-layout").captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }
+                rule.onNodeWithTag("reader-layout").performTouchInput { click(center) }
+                rule.onNodeWithTag("reader-info-chapter").assertDoesNotExist()
             }
             rule.onNodeWithContentDescription("目录").performClick()
             rule.onNodeWithContentDescription("书签更多操作").performClick()

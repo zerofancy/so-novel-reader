@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,6 +35,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -59,10 +63,13 @@ internal fun VerticalReader(
     onNextChapter: () -> Unit,
     activeSentence: TtsSentenceLocator? = null,
     onManualNavigation: () -> Unit = {},
+    onDisplayInfo: (ReaderDisplayInfo) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val textStyle = readerTextStyle(settings, palette.foreground)
     val density = LocalDensity.current
+    val padding = LocalReaderPadding.current
+    val direction = LocalLayoutDirection.current
     val thresholdPx = with(density) { CHAPTER_PULL_THRESHOLD.roundToPx().toFloat() }
     val maxDistancePx = with(density) { CHAPTER_PULL_MAX_DISTANCE.roundToPx().toFloat() }
     val pullState = remember(content, hasPreviousChapter, hasNextChapter, thresholdPx, maxDistancePx) {
@@ -133,30 +140,36 @@ internal fun VerticalReader(
         positionRestored = true
         if (fragment != null) onFragmentConsumed()
     }
-    LaunchedEffect(content, listState, jumpToken, positionRestored) {
+    LaunchedEffect(content, listState, jumpToken, positionRestored, onDisplayInfo) {
         if (!positionRestored) return@LaunchedEffect
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 2..content.blocks.size + 1 }
-        }.distinctUntilChanged().collect { visible ->
+            listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index in 2..content.blocks.size + 1 } to
+                (!listState.canScrollForward && listState.layoutInfo.totalItemsCount > 0)
+        }.distinctUntilChanged().collect { (visible, atEnd) ->
             if (visible != null) {
                 val blockIndex = visible.index - 2
                 val inside = (-visible.offset).toFloat().div(visible.size.coerceAtLeast(1)).coerceIn(0f, 1f)
-                onProgress(content.progressAt(blockIndex, inside))
+                val fraction = content.progressAt(blockIndex, inside)
+                onProgress(fraction)
+                onDisplayInfo(ReaderDisplayInfo(percent = readerPercent(fraction, atEnd)))
+            } else {
+                onDisplayInfo(ReaderDisplayInfo(percent = if (atEnd) 100 else 0))
             }
         }
     }
 
-    Box(Modifier.fillMaxSize().clipToBounds()) {
+    Box(Modifier.fillMaxSize()
+        .pointerInput(onToggleControls) {
+            detectTapGestures { position ->
+                if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
+            }
+        }
+        .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding()).clipToBounds()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize()
                 .nestedScroll(nestedScrollConnection)
                 .graphicsLayer { translationY = pullOffsetPx }
-                .pointerInput(onToggleControls) {
-                    detectTapGestures { position ->
-                        if (position.x in size.width * 0.3f..size.width * 0.7f) onToggleControls()
-                    }
-                }
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -171,7 +184,7 @@ internal fun VerticalReader(
                         }
                     }
                 },
-            contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+            contentPadding = PaddingValues(start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction)),
             verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
             overscrollEffect = null,
         ) {

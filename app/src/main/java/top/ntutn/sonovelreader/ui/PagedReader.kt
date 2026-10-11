@@ -1,11 +1,14 @@
 package top.ntutn.sonovelreader.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.Text
@@ -20,6 +23,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -55,14 +59,17 @@ internal fun PagedReader(
     navigationEnabled: Boolean = true,
     activeSentence: TtsSentenceLocator? = null,
     onManualNavigation: () -> Unit = {},
+    onDisplayInfo: (ReaderDisplayInfo) -> Unit = {},
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val textMeasurer = rememberTextMeasurer()
         val indentStyle = readerTextStyle(settings, palette.foreground, applyIndent = true)
         val noIndentStyle = readerTextStyle(settings, palette.foreground, applyIndent = false)
-        val widthPx = with(density) { (maxWidth - 44.dp).roundToPx().coerceAtLeast(1) }
-        val heightPx = with(density) { (maxHeight - 176.dp).roundToPx().coerceAtLeast(1) }
+        val padding = LocalReaderPadding.current
+        val direction = LocalLayoutDirection.current
+        val widthPx = with(density) { (maxWidth - padding.calculateStartPadding(direction) - padding.calculateEndPadding(direction)).roundToPx().coerceAtLeast(1) }
+        val heightPx = with(density) { (maxHeight - padding.calculateTopPadding() - padding.calculateBottomPadding()).roundToPx().coerceAtLeast(1) }
         val spacingPx = with(density) { settings.paragraphSpacingDp.dp.roundToPx() }
         val lineHeightPx = with(density) { (settings.fontSizeSp * settings.lineHeight).sp.roundToPx().coerceAtLeast(1) }
         val pages = rememberChapterPages(content, chapterTitle, settings, widthPx, heightPx, spacingPx,
@@ -82,7 +89,7 @@ internal fun PagedReader(
         val targetProgress = fragment?.let(content.anchors::get)?.let {
             content.progressAt(it.blockIndex, it.fractionInBlock)
         } ?: initialFraction
-        val pagerState = remember(chapterKey, content, pages, jumpToken) {
+        val pagerState = remember(chapterKey, content, pages, pageOffset, window.size, jumpToken) {
             PagerState(
                 currentPage = pageOffset + pages.pageForProgress(targetProgress),
                 pageCount = window::size,
@@ -97,11 +104,12 @@ internal fun PagedReader(
             restored = true
             if (fragment != null) onFragmentConsumed()
         }
-        LaunchedEffect(pagerState, pages, restored) {
+        LaunchedEffect(pagerState, window, restored, onDisplayInfo) {
             if (!restored) return@LaunchedEffect
             snapshotFlow { pagerState.settledPage to pagerState.isScrollInProgress }.distinctUntilChanged().collect { (page, scrolling) ->
                 if (!scrolling) {
                     window.getOrNull(page)?.let {
+                        onDisplayInfo(it.displayInfo())
                         when (it.chapterOffset) {
                             -1 -> onPreviousChapter()
                             1 -> onNextChapter()
@@ -150,11 +158,12 @@ internal fun PagedReader(
                 )
             },
         ) { pageIndex ->
+            val entry = window[pageIndex]
+            Box(Modifier.fillMaxSize()) {
             Column(
-                Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 92.dp),
+                Modifier.fillMaxSize().padding(padding),
                 verticalArrangement = Arrangement.spacedBy(settings.paragraphSpacingDp.dp),
             ) {
-                val entry = window[pageIndex]
                 if (entry.title != null) {
                     Text(
                         text = entry.title,
@@ -182,6 +191,8 @@ internal fun PagedReader(
                         )
                     }
                 }
+            }
+            ReaderPageInfo(entry)
             }
         }
     }
