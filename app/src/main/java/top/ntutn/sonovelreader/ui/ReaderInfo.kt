@@ -11,14 +11,16 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -60,7 +62,6 @@ internal data class ReaderPageDecoration(
     val end: Dp,
     val top: Dp,
     val bottom: Dp,
-    val twoRows: Boolean,
     val titles: Map<Int, String>,
     val device: ReaderDeviceStatus,
     val palette: ReaderPalette,
@@ -105,14 +106,12 @@ internal fun ReaderInfoLayout(
         val end = if (direction == androidx.compose.ui.unit.LayoutDirection.Ltr) right else left
         val top = with(density) { safe.getTop(density).toDp() }
         val bottom = with(density) { safe.getBottom(density).toDp() }
-        // Reserve for the longest labels, independently of the changing clock/battery values.
-        val twoRows = maxWidth - left - right - 44.dp < 320.dp * density.fontScale
         val lineHeight = with(density) { 20.sp.toDp() }.coerceAtLeast(24.dp)
         val topSpace = (top + lineHeight + 12.dp).coerceAtLeast(84.dp)
-        val bottomSpace = (bottom + lineHeight * (if (twoRows) 2 else 1) + 12.dp).coerceAtLeast(92.dp)
+        val bottomSpace = (bottom + lineHeight + 12.dp).coerceAtLeast(92.dp)
         // One subscription per reader, shared by every composed/pre-rendered page.
         val device = if (visible) rememberReaderDeviceStatus() else ReaderDeviceStatus()
-        val decoration = if (visible) ReaderPageDecoration(start, end, top, bottom, twoRows, chapterTitles, device, palette) else null
+        val decoration = if (visible) ReaderPageDecoration(start, end, top, bottom, chapterTitles, device, palette) else null
         CompositionLocalProvider(LocalReaderPadding provides PaddingValues(
             start = start + 22.dp, end = end + 22.dp, top = topSpace, bottom = bottomSpace,
         ), LocalReaderPageDecoration provides decoration.takeIf { pageAttached }) { content() }
@@ -124,7 +123,7 @@ internal fun ReaderInfoLayout(
 
 @Composable
 private fun ReaderInfoLayer(chapterTitle: String, scrolling: Boolean, info: ReaderDisplayInfo?, decoration: ReaderPageDecoration) {
-    val (start, end, top, bottom, twoRows, _, device, palette) = decoration
+    val (start, end, top, bottom, _, device, palette) = decoration
     Box(Modifier.fillMaxSize()) {
             Text(
                 chapterTitle, color = palette.muted, fontSize = 12.sp, lineHeight = 20.sp,
@@ -133,30 +132,25 @@ private fun ReaderInfoLayer(chapterTitle: String, scrolling: Boolean, info: Read
                     .testTag("reader-info-chapter")
                     .clearAndSetSemantics { contentDescription = chapterTitle },
             )
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .padding(start = start + 22.dp, end = end + 22.dp, bottom = bottom + 6.dp)) {
-                if (twoRows) {
-                    ReaderProgressLabel(scrolling, info, palette)
-                    ReaderDeviceLabel(device, palette, Modifier.align(Alignment.End))
-                } else {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically) {
-                        ReaderProgressLabel(scrolling, info, palette)
-                        ReaderDeviceLabel(device, palette)
-                    }
-                }
+            Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .padding(start = start + 22.dp, end = end + 22.dp, bottom = bottom + 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                ReaderProgressLabel(scrolling, info, palette, Modifier.weight(1f))
+                ReaderDeviceLabel(device, palette)
             }
     }
 }
 
 @Composable
-private fun ReaderProgressLabel(scrolling: Boolean, info: ReaderDisplayInfo?, palette: ReaderPalette) {
+private fun ReaderProgressLabel(scrolling: Boolean, info: ReaderDisplayInfo?, palette: ReaderPalette, modifier: Modifier = Modifier) {
     val text = if (scrolling) "本章 ${info?.percent ?: "—"}%"
         else "本章 ${info?.page ?: "—"} / ${info?.pageCount ?: "—"} 页"
     val description = if (!scrolling && info?.page != null && info.pageCount != null)
         "本章第 ${info.page} 页，共 ${info.pageCount} 页" else text
     Text(text, color = palette.muted, fontSize = 12.sp, lineHeight = 20.sp, maxLines = 1,
-        modifier = Modifier.testTag("reader-info-progress").clearAndSetSemantics { contentDescription = description })
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.testTag("reader-info-progress").clearAndSetSemantics { contentDescription = description })
 }
 
 internal data class ReaderDeviceStatus(val time: String = "", val battery: Int? = null, val charging: Boolean = false)
@@ -220,12 +214,23 @@ private fun rememberReaderDeviceStatus(): ReaderDeviceStatus {
 internal fun ReaderDeviceLabel(status: ReaderDeviceStatus, palette: ReaderPalette, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(status.time, fontSize = 12.sp, lineHeight = 20.sp, color = palette.muted, maxLines = 1)
-        Row(Modifier.clearAndSetSemantics {
+        val batteryColor = if (status.battery != null && status.battery <= 10) Color.Red else palette.muted
+        Canvas(Modifier.size(width = 26.dp, height = 12.dp).clearAndSetSemantics {
             contentDescription = "电量 ${status.battery?.let { "$it%" } ?: "未知"}" + if (status.charging) "，充电中" else ""
-        }, verticalAlignment = Alignment.CenterVertically) {
-            Icon(if (status.charging) Icons.Default.BatteryChargingFull else Icons.Default.BatteryFull,
-                contentDescription = null, tint = palette.muted, modifier = Modifier.size(16.dp))
-            Text("${status.battery ?: "—"}%", fontSize = 12.sp, lineHeight = 20.sp, color = palette.muted, maxLines = 1)
+        }) {
+            val stroke = 1.dp.toPx()
+            val bodyWidth = size.width - 3.dp.toPx()
+            drawRoundRect(batteryColor, Offset(stroke / 2, stroke / 2),
+                Size(bodyWidth - stroke, size.height - stroke), CornerRadius(2.dp.toPx()),
+                style = Stroke(stroke))
+            drawRoundRect(batteryColor, Offset(bodyWidth, size.height / 3),
+                Size(2.dp.toPx(), size.height / 3), CornerRadius(0.5.dp.toPx()))
+            val inset = 2.dp.toPx()
+            val fraction = (status.battery ?: 0).coerceIn(0, 100) / 100f
+            if (fraction > 0f) {
+                drawRect(batteryColor, Offset(inset, inset),
+                    Size((bodyWidth - inset * 2) * fraction, size.height - inset * 2))
+            }
         }
     }
 }
