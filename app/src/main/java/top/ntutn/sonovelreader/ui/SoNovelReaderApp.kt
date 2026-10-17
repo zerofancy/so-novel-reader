@@ -200,6 +200,7 @@ fun SoNovelReaderApp(
                     onCancelMoveBook = libraryViewModel::cancelMoveBook,
                     onConfirmMoveBook = libraryViewModel::confirmMoveBook,
                     onRequestMoveToNewGroup = libraryViewModel::requestMoveToNewGroup,
+                    onDropBook = libraryViewModel::dropBook,
                     modifier = Modifier.padding(contentPadding),
                 )
             }

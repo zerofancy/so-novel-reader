@@ -50,17 +50,20 @@ class BookRepository(
      * 用作书架首页的数据来源。
      */
     fun observeTopLevelShelf(): Flow<Pair<List<ShelfGroup>, List<ShelfBook>>> =
-        combine(
-            dao.observeGroups(),
-            dao.observeGroupBookCounts(),
-            dao.observeTopLevelBooks(),
-        ) { groups, countRows, books ->
-            val counts: Map<String, Int> = countRows.associate { it.categoryId to it.bookCount }
-            val shelfGroups = groups.map { g ->
-                ShelfGroup(id = g.id, name = g.name, bookCount = counts[g.id] ?: 0)
-            }
-            shelfGroups to books.map(BookWithProgressMapper)
+        dao.observeShelfChanges().map {
+            val snapshot = dao.getShelfSnapshot()
+            val counts = snapshot.books.mapNotNull { it.book.categoryId }.groupingBy { it }.eachCount()
+            snapshot.groups.map { ShelfGroup(it.id, it.name, counts[it.id] ?: 0) } to
+                snapshot.books.filter { it.book.categoryId == null }.map(BookWithProgressMapper)
         }
+
+    suspend fun dropBookIntoGroup(bookId: String, groupId: String): String = withContext(ioDispatcher) {
+        dao.dropBookIntoGroup(bookId, groupId)
+    }
+
+    suspend fun groupTwoBooks(sourceId: String, targetId: String): String = withContext(ioDispatcher) {
+        dao.groupTwoBooks(sourceId, targetId)
+    }
 
     /** 分组详情：指定分组内的书籍。 */
     fun observeGroupShelf(groupId: String): Flow<List<ShelfBook>> =

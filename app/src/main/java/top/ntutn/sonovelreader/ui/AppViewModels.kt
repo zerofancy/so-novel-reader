@@ -40,6 +40,7 @@ data class LibraryUiState(
     val groups: List<ShelfGroup> = emptyList(),
     val ungroupedBooks: List<ShelfBook> = emptyList(),
     val importing: Boolean = false,
+    val organizing: Boolean = false,
     val deletingBookId: String? = null,
     val deletingGroupId: String? = null,
     val editingGroup: EditGroupState? = null,
@@ -60,6 +61,28 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
                 .collect { (groups, books) ->
                     mutableState.update { it.copy(groups = groups, ungroupedBooks = books) }
                 }
+        }
+    }
+
+    fun dropBook(bookId: String, target: ShelfDropTarget) {
+        if (mutableState.value.organizing || mutableState.value.importing) return
+        mutableState.update { it.copy(organizing = true) }
+        viewModelScope.launch {
+            val message = try {
+                when (target) {
+                    is ShelfDropTarget.Group -> "已移入『${container.bookRepository.dropBookIntoGroup(bookId, target.id)}』"
+                    is ShelfDropTarget.Book -> "已创建『${container.bookRepository.groupTwoBooks(bookId, target.id)}』，并移入 2 本书"
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: top.ntutn.sonovelreader.data.local.ShelfChangedException) {
+                error.message!!
+            } catch (error: Exception) {
+                "整理失败，请重试"
+            } finally {
+                mutableState.update { it.copy(organizing = false) }
+            }
+            eventChannel.send(LibraryEvent.Message(message))
         }
     }
 

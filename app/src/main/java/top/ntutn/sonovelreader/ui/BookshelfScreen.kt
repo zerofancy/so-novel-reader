@@ -1,5 +1,17 @@
 package top.ntutn.sonovelreader.ui
 
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -84,10 +96,16 @@ fun BookshelfScreen(
     onCancelMoveBook: () -> Unit,
     onConfirmMoveBook: (targetGroupId: String?) -> Unit,
     onRequestMoveToNewGroup: (bookId: String) -> Unit,
+    onDropBook: (String, ShelfDropTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var topMenuExpanded by remember { mutableStateOf(false) }
+    var pairingBook by remember { mutableStateOf<String?>(null) }
+    val grid = rememberLazyGridState()
+    val dragEnabled = !state.importing && !state.organizing && !topMenuExpanded && pairingBook == null &&
+        state.deletingBookId == null && state.deletingGroupId == null && state.editingGroup == null && state.movingBook == null
+    val drag = rememberShelfDragState(grid, dragEnabled, state.groups to state.ungroupedBooks)
     Column(modifier.fillMaxSize()) {
-        var topMenuExpanded by remember { mutableStateOf(false) }
         TopAppBar(
             title = {
                 Text(
@@ -97,7 +115,7 @@ fun BookshelfScreen(
             },
             actions = {
                 Box {
-                    IconButton(onClick = { topMenuExpanded = true }) {
+                    IconButton(onClick = { topMenuExpanded = true }, enabled = !state.organizing) {
                         Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
                     }
                     DropdownMenu(
@@ -118,7 +136,7 @@ fun BookshelfScreen(
                 }
             },
         )
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().shelfDragContainer(drag, onDropBook)) {
             val groupsEmpty = state.groups.isEmpty()
             val booksEmpty = state.ungroupedBooks.isEmpty()
 
@@ -126,6 +144,7 @@ fun BookshelfScreen(
                 EmptyShelf(onImport)
             } else {
                 LazyVerticalGrid(
+                    state = grid,
                     columns = GridCells.Adaptive(112.dp),
                     contentPadding = PaddingValues(
                         start = 16.dp,
@@ -135,12 +154,14 @@ fun BookshelfScreen(
                     ),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().testTag("shelf-grid"),
                 ) {
                     // 1) 分组卡片
                     items(state.groups, key = ShelfGroup::id) { group ->
                         GroupCard(
                             group = group,
+                            drag = drag,
+                            enabled = !state.organizing,
                             onClick = { onOpenGroup(group) },
                             onRename = { onRenameGroup(group.id) },
                             onDelete = { onRequestDeleteGroup(group.id) },
@@ -150,6 +171,10 @@ fun BookshelfScreen(
                     items(state.ungroupedBooks, key = ShelfBook::id) { book ->
                         BookCard(
                             book = book,
+                            drag = drag,
+                            enabled = !state.organizing,
+                            onPairBook = { pairingBook = book.id },
+                            canPair = state.ungroupedBooks.size > 1,
                             onOpenBook = onOpenBook,
                             onDeleteBook = onDeleteBook,
                             onMoveBook = {
@@ -159,20 +184,39 @@ fun BookshelfScreen(
                     }
                     // 3) "新建分组" 占位卡片
                     item(key = "__create_group__") {
-                        AddGroupCard(onClick = onCreateGroup)
+                        AddGroupCard(onClick = onCreateGroup, enabled = !state.organizing)
                     }
                 }
             }
 
             FloatingActionButton(
-                onClick = onImport,
+                onClick = { if (!state.organizing) onImport() },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(20.dp),
+                    .padding(20.dp)
+                    .onGloballyPositioned { drag.importButton = it.boundsInRoot() },
             ) {
                 Icon(Icons.Default.Add, contentDescription = "导入 EPUB")
             }
 
+            ShelfDragOverlay(drag)
+
+            if (state.organizing) {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = .12f))
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                        }
+                    }, contentAlignment = Alignment.Center) {
+                    Surface(shape = RoundedCornerShape(12.dp)) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("正在整理…")
+                        }
+                    }
+                }
+            }
             if (state.importing) {
                 Box(
                     Modifier
@@ -196,6 +240,24 @@ fun BookshelfScreen(
                 }
             }
         }
+    }
+
+    pairingBook?.let { sourceId ->
+        AlertDialog(
+            onDismissRequest = { pairingBook = null },
+            title = { Text("与其他书籍创建分类") },
+            text = {
+                LazyColumn {
+                    items(state.ungroupedBooks.filter { it.id != sourceId }, key = ShelfBook::id) { book ->
+                        TextButton(onClick = {
+                            pairingBook = null
+                            onDropBook(sourceId, ShelfDropTarget.Book(book.id))
+                        }, modifier = Modifier.fillMaxWidth()) { Text(book.title) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { pairingBook = null }) { Text("取消") } },
+        )
     }
 
     // ========= 对话框 =========
@@ -308,15 +370,20 @@ private fun EmptyShelf(onImport: () -> Unit) {
 @Composable
 private fun GroupCard(
     group: ShelfGroup,
+    drag: ShelfDragState,
+    enabled: Boolean,
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val target = ShelfDropTarget.Group(group.id)
+    LaunchedEffect(menuExpanded) { drag.openMenus[target] = menuExpanded }
     Column(
-        Modifier
+        Modifier.shelfDragCard(drag, ShelfDragItem(target, group.name))
             .fillMaxWidth()
             .combinedClickable(
+                enabled = enabled,
                 onClick = onClick,
                 onLongClick = { menuExpanded = true },
             ),
@@ -325,7 +392,9 @@ private fun GroupCard(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(166.dp),
+                    .height(166.dp)
+                    .testTag("shelf-group-${group.id}")
+                    .shelfDropCover(drag, target),
                 shape = RoundedCornerShape(10.dp),
             ) {
                 Column(
@@ -375,8 +444,10 @@ private fun GroupCard(
                     Spacer(Modifier.width(2.dp))
                     Box {
                         IconButton(
+                            enabled = enabled,
                             onClick = { menuExpanded = true },
                             modifier = Modifier
+                                .onGloballyPositioned { drag.menus[target] = it.boundsInRoot() }
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(
@@ -443,11 +514,11 @@ private fun GroupCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AddGroupCard(onClick: () -> Unit) {
+private fun AddGroupCard(onClick: () -> Unit, enabled: Boolean) {
     Column(
         Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, enabled = enabled),
     ) {
         Card(
             modifier = Modifier
@@ -503,24 +574,39 @@ private fun AddGroupCard(onClick: () -> Unit) {
 @Composable
 private fun BookCard(
     book: ShelfBook,
+    drag: ShelfDragState,
+    enabled: Boolean,
+    onPairBook: () -> Unit,
+    canPair: Boolean,
     onOpenBook: (String) -> Unit,
     onDeleteBook: (String) -> Unit,
     onMoveBook: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val target = ShelfDropTarget.Book(book.id)
+    LaunchedEffect(menuExpanded) { drag.openMenus[target] = menuExpanded }
     Column(
-        Modifier
+        Modifier.shelfDragCard(drag, ShelfDragItem(target, book.title, book))
+            .testTag("shelf-book-${book.id}")
+            .semantics {
+                customActions = if (!enabled) emptyList() else buildList {
+                    add(CustomAccessibilityAction("移动到分组") { onMoveBook(); true })
+                    if (canPair) add(CustomAccessibilityAction("与其他书籍创建分类") { onPairBook(); true })
+                }
+            }
             .fillMaxWidth()
             .combinedClickable(
+                enabled = enabled,
                 onClick = { onOpenBook(book.id) },
-                onLongClick = { menuExpanded = true },
             ),
     ) {
         Box {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(166.dp),
+                    .height(166.dp)
+                    .testTag("shelf-cover-${book.id}")
+                    .shelfDropCover(drag, target),
                 shape = RoundedCornerShape(10.dp),
             ) {
                 if (book.coverPath != null) {
@@ -543,8 +629,10 @@ private fun BookCard(
                     .padding(6.dp),
             ) {
                 IconButton(
+                    enabled = enabled,
                     onClick = { menuExpanded = true },
                     modifier = Modifier
+                        .onGloballyPositioned { drag.menus[target] = it.boundsInRoot() }
                         .clip(RoundedCornerShape(50))
                         .background(
                             MaterialTheme.colorScheme.surface
@@ -553,7 +641,7 @@ private fun BookCard(
                 ) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = "更多操作",
+                        contentDescription = "书籍『${book.title}』的更多操作",
                     )
                 }
                 DropdownMenu(
@@ -569,6 +657,11 @@ private fun BookCard(
                         leadingIcon = {
                             Icon(Icons.Default.DriveFileMove, contentDescription = null)
                         },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("与其他书籍创建分类") },
+                        enabled = canPair,
+                        onClick = { menuExpanded = false; onPairBook() },
                     )
                     DropdownMenuItem(
                         text = { Text("删除书籍") },

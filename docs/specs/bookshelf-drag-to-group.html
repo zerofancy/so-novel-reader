@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>书架拖拽分类 · 功能 Spec</title>
+  <style>
+    :root { color-scheme: light; --ink:#24312d; --muted:#607169; --green:#27624e; --line:#dce5df; --paper:#fff; --wash:#f1f5f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--wash); color:var(--ink); font:16px/1.8 system-ui,-apple-system,"Noto Sans CJK SC",sans-serif; }
+    main { max-width:1080px; margin:40px auto; background:var(--paper); padding:52px 64px; border-radius:20px; }
+    h1,h2,h3 { line-height:1.4; } h1 { font-size:36px; margin:12px 0; } h2 { margin:42px 0 16px; padding-top:12px; border-top:1px solid var(--line); font-size:24px; } h3 { font-size:18px; margin:24px 0 10px; }
+    p { margin:10px 0; } a { color:var(--green); } li { margin:7px 0; } code { font-size:.9em; background:var(--wash); padding:2px 5px; border-radius:4px; overflow-wrap:anywhere; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.12em; font-size:13px; } .meta { color:var(--muted); font-size:14px; }
+    .lead { font-size:19px; max-width:780px; } .note { padding:16px 20px; background:#eef5ef; border-left:4px solid var(--green); border-radius:0 10px 10px 0; margin:22px 0; }
+    nav { display:flex; gap:10px 20px; flex-wrap:wrap; margin:25px 0; font-size:14px; }
+    .scenarios { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:24px 0; } .scenario { padding:22px; border:1px solid var(--line); border-radius:14px; background:#fafcf9; }
+    .scenario h3 { margin:0 0 16px; } .flow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; min-height:105px; }
+    .book { padding:14px 10px; width:66px; min-height:89px; border-radius:4px 9px 9px 4px; background:#e0ebdf; border-left:5px solid #6e8e71; text-align:center; font-weight:600; }
+    .book.second { background:#f0e7d4; border-color:#b18e59; } .folder { padding:14px; border:2px dashed #67917a; border-radius:10px; background:#e9f2e9; text-align:center; } .arrow { color:var(--green); font-weight:bold; } .caption { font-size:14px; color:var(--muted); }
+    .table-wrap { overflow-x:auto; } table { border-collapse:collapse; width:100%; margin:16px 0; font-size:14px; } th,td { border:1px solid var(--line); padding:11px 13px; text-align:left; vertical-align:top; } th { background:var(--wash); } td:first-child { min-width:120px; }
+    .state { padding:16px; background:var(--wash); border-radius:10px; font-family:monospace; overflow-wrap:anywhere; } footer { margin-top:36px; color:var(--muted); font-size:13px; }
+    @media(max-width:720px) { main { margin:0; padding:28px 20px; border-radius:0; } h1 { font-size:28px; } .scenarios { grid-template-columns:1fr; } }
+    @media print { body { background:white; } main { margin:0; padding:0; max-width:none; } nav { display:none; } h2,h3 { break-after:avoid; } tr,.scenario,.note { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">SO NOVEL READER / PRODUCT SPEC</div>
+    <h1>拖动书籍，整理分类</h1>
+    <p class="meta">2026-10-17 · v1.1 · 已实现 · 验证记录见第 7 节</p>
+    <p class="lead">将书籍拖到已有分类上，直接移入该分类；拖到另一本书上，自动创建未命名分类，并将两本书一同移入。</p>
+  </header>
+  <nav aria-label="文档导航">
+    <a href="#scope">范围</a><a href="#interaction">交互</a><a href="#rules">业务规则</a><a href="#data">数据与实现</a><a href="#acceptance">验收</a><a href="#review">Review 重点</a>
+  </nav>
+  <div class="scenarios" aria-label="两种拖放操作示意，非交互原型">
+    <section class="scenario"><h3>01 / 放入已有分类</h3><div class="flow"><div class="book">书籍 A</div><span class="arrow">→</span><div class="folder">历史<br><small>原有 N 本 → N+1 本</small></div></div><p class="caption">松手提交，A 从书架顶层移入「历史」。</p></section>
+    <section class="scenario"><h3>02 / 两本书组成新分类</h3><div class="flow"><div class="book">书籍 A</div><span class="arrow">→</span><div class="book second">书籍 B</div><span class="arrow">→</span><div class="folder">未命名分类<br><small>A + B · 2 本</small></div></div><p class="caption">自动建分类，无需先填写名称。</p></section>
+  </div>
+
+  <h2 id="scope">1. 目标与本版范围</h2>
+  <p>让书架首页的整理操作直接在卡片之间完成，减少「更多 → 移动到分组 → 选择目标」的步骤。本文的「分类」对应当前界面的「分组」及数据库的 <code>categories</code>，是同一个概念；现有菜单文案暂不统一改名。</p>
+  <div class="note"><strong>本版范围：</strong>本版拖拽仅发生在「我的书架」首页，拖动源为未分组书籍，目标为已有分组卡片或另一本未分组书籍。分组详情页仍通过现有菜单移动书籍。已按此首版范围实现。</div>
+  <ul>
+    <li>支持单本书长按拖动、目标高亮、松手提交、边缘自动滚动、取消与失败反馈。</li>
+    <li>沿用单层分类、一本书最多属于一个分类的规则；不复制书籍，不新增嵌套分类。</li>
+    <li>本版不包含卡片自由排序、分类拖动、批量拖动、跨页面拖动、悬停打开分类及跨应用拖入。</li>
+    <li>分组详情页的书籍长按菜单、移动到分组、移回书架顶层以及重命名、删除分组功能继续保留。</li>
+  </ul>
+
+  <h2 id="interaction">2. 手势与视觉反馈</h2>
+  <h3>2.1 开始拖动</h3>
+  <ol>
+    <li>在首页书籍的封面、标题或作者区域按住，达到系统长按阈值后进入拖动准备态；给出一次轻触觉反馈和浮起效果。</li>
+    <li>长按前的纵向移动超过系统触摸容差时，按正常书架滚动处理。进入准备态后，移动超过容差开始拖动；手指未移动就松开，仅结束准备态，不打开书籍、不弹菜单、不修改分类。</li>
+    <li>拖动中显示书籍卡片的浮层预览，保持手指相对卡片的抓取位置；源卡片保留占位并降低透明度，其他条目不因悬停而重新排列。</li>
+    <li>首页书籍原有的长按弹菜单改为长按拖动；右上角「更多」按钮仍打开原菜单。点按书籍仍进入阅读，点按分类仍进入详情页。分类卡片的长按菜单保留。</li>
+    <li>「更多」按钮独立消费手势，从按钮上开始按住不发起拖动。菜单、对话框、导入遮罩显示时，以及已有拖放写入未结束时，禁止开启新的拖动。</li>
+  </ol>
+  <h3>2.2 目标判定</h3>
+  <p>以<strong>当前手指位置</strong>命中目标，使用目标卡片封面或文件夹主体的可见矩形区域；标题、卡片间空白和源卡片不参与命中。目标右上角菜单按钮不作为有效落点。裁剪区域与被顶栏、底部导航、导入按钮等覆盖的区域均不可命中。</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>当前目标</th><th>悬停反馈</th><th>松手结果</th></tr></thead>
+    <tbody>
+      <tr><td>已有分组</td><td>文件夹主体描边高亮，显示「移入『分组名』」</td><td>将源书籍移入该分组</td></tr>
+      <tr><td>另一书籍</td><td>目标封面描边高亮，显示「与『书名』创建分类」</td><td>新建未命名分类，两本书一同移入</td></tr>
+      <tr><td>自身 / 空白 / 页面控件</td><td>无目标高亮</td><td>取消，原数据不变</td></tr>
+      <tr><td>「新建分组」占位卡片</td><td>无目标高亮</td><td>取消；此卡片仍仅支持点按新建</td></tr>
+    </tbody>
+  </table></div>
+  <p>同一时刻最多一个目标高亮。悬停立即反馈，不设额外停留时长，也不打开分类或命名框；松手时重新命中并校验，以最后落点为准。长书名和分类名可省略显示，但不得遮住目标。</p>
+  <h3>2.3 滚动、取消与中断</h3>
+  <ul>
+    <li>拖动时手指进入网格可见区域顶部或底部的 48dp 边缘带，触发该方向自动滚动，越靠边速度越快，建议最高 600dp/s；到达边界停止。参数可经设备体验调整。</li>
+    <li>自动滚动期间持续按当前布局重算命中区域；边缘带本身不覆盖落点判定，因此顶部的分类仍可接收书籍。浮层不受网格裁剪，且不拦截命中。</li>
+    <li>松手落在无效区域时，立即停止自动滚动并清除目标高亮；书籍浮层用约 280ms 的缓动动画回到原卡片位置，同时恢复原大小，再与原卡片衔接，期间不写库。如果原卡片已滚出屏幕，先平滑恢复拖动开始时的书架视野，再完成回位。回位期间屏蔽新的网格操作，避免再次拖动或误开书。收到手势取消、按返回、应用切到后台、配置变化或离开书架时则直接清理拖动状态。</li>
+    <li>第二根手指加入即取消本次拖动，避免多指造成误提交。取消后的松手不得触发书籍点击。</li>
+    <li>拖动中若书籍或分组列表发生变化，取消拖动并等待列表稳定；由滚动引起的可见条目变化不视为数据变更。卡片重组不应自行结束拖动。</li>
+  </ul>
+  <h3>2.4 提交结果</h3>
+  <p>有效松手后关闭拖动浮层，进入提交态；列表由数据库 Flow 刷新，不提前隐藏书籍或添加临时分类。提交期间屏蔽首页新的整理操作并显示轻量忙碌反馈，防止重复移动。</p>
+  <ul>
+    <li>移入成功：显示「已移入『分组名』」；顶层移除源书籍，分组数量加一。</li>
+    <li>合并成功：显示「已创建『实际分类名』，并移入 2 本书」；顶层移除两本书，出现数量为 2 的新分类。</li>
+    <li>成功后停留首页，不自动进入新分类、不弹命名框；可通过原有入口重命名。保持当前滚动位置，条目减少时仅做必要的边界收敛。</li>
+    <li>失败：提示「整理失败，请重试」，恢复可操作状态。目标已失效时提示「书籍或分类已变化，请重新拖动」。全部失败路径均不得遗留空的新分类或只移动其中一本。</li>
+    <li>提交已发出后不提供手势撤回；页面离开不撤销已提交的事务。成功结果以数据库为准，避免将已成功操作显示为失败。本版不增加 Snackbar「撤销」操作。</li>
+  </ul>
+  <p>无障碍：保留「更多 → 移动到分组」作为非拖动路径。首页书籍增加「与其他书籍创建分类」语义操作，弹出其他顶层书籍的选择列表，确认目标后调用相同事务；无其他书籍时禁用。开启读屏时可使用上述操作，完成及失败均播报结果。</p>
+
+  <h2 id="rules">3. 分类与数据规则</h2>
+  <h3>3.1 未命名分类的名称</h3>
+  <p>第一次使用「未命名分类」。若已存在同名，依次尝试「未命名分类 2」「未命名分类 3」等，取当前可用的最小编号；存在该名称的空分组也算占用。不把新书合并进已有的未命名分类，每一次书籍对书籍的成功拖放都创建独立分类。</p>
+  <p>名称是普通、可重命名的分组名称，不是空字符串或特殊占位值。名称选择与插入必须在同一数据库事务中，继续保留现有分组名唯一索引。</p>
+  <h3>3.2 归属与排序</h3>
+  <ul>
+    <li>书籍移入分类是更新原书籍的 <code>categoryId</code>；<code>bookId</code>、EPUB 文件、封面、书签、阅读进度和后台朗读状态不变。</li>
+    <li>已有分类沿用 <code>sortOrder</code>，新分类使用当前最大值加一，排在已有分类之后、顶层书籍之前。</li>
+    <li>书籍继续按现有最近阅读时间、其次导入时间排序；拖放不修改时间戳，也不表示调整显示顺序。</li>
+    <li>首页的两本书必须不同且均未分组；目标分类必须仍存在。若提交时任何前提已不成立，整次操作失败，不把已被移动的书再次强制移走。</li>
+  </ul>
+
+  <h2 id="data">4. 数据设计与实现建议</h2>
+  <p>当前实现依据：<code>BookshelfScreen.kt</code> 展示分组和未分组书籍，<code>GroupShelfScreen.kt</code> 展示组内书籍；<code>LibraryViewModel</code> 负责分组和移动操作；<code>BookRepository</code> 与 <code>LibraryDao</code> 负责持久化。</p>
+  <p><code>CategoryEntity.name</code> 已有唯一索引，<code>BookEntity.categoryId</code> 为可空外键，删除分组时设为 null。当前 <code>LibraryDatabase</code> 版本为 3。本功能可复用现有 schema，<strong>无需升级数据库版本</strong>。若开发中确需改 schema，另行说明原因，按项目约定优先使用 Room <code>@AutoMigration</code>，保留现有数据。</p>
+  <h3>4.1 事务边界</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>操作</th><th>同一 Room 事务中的步骤</th></tr></thead>
+    <tbody>
+      <tr><td>移入已有分类</td><td>查询并验证源书籍存在且未分组 → 验证目标分类存在 → 更新归属并确认影响 1 行 → 提交</td></tr>
+      <tr><td>两书新建分类</td><td>验证两个 ID 不同，且书籍存在、均未分组 → 分配可用名称与 sortOrder → 插入分类 → 更新两本书归属并确认影响 2 行 → 提交</td></tr>
+    </tbody>
+  </table></div>
+  <p>任一步失败必须回滚。不得直接串联当前的 <code>createGroup()</code> 与两次 <code>moveBookToGroup()</code> 代替原子事务。DAO 的更新方法需返回影响行数，事务内完成前置校验与结果校验。所有入口通过同一数据库写事务处理命名与归属，唯一索引冲突需作为失败处理，不能吞掉后继续移动。</p>
+  <h3>4.2 状态与组件</h3>
+  <p class="state">Idle → Armed → Dragging(target?) → Committing → Idle<br>Armed / Dragging → Returning（无效松手）→ Idle<br>Armed / Dragging / Returning → Cancelled（系统或页面中断）→ Idle</p>
+  <ul>
+    <li>页面持有短期拖动状态：源 ID、主指针、起始偏移、当前位置及候选目标 ID。该状态不落库、不跨配置变化恢复。</li>
+    <li>由首页公共容器统一维护网格滚动状态、可见目标矩形、命中判定及预览浮层；用同一坐标系处理定位，不用网格下标推断书籍或分组身份。</li>
+    <li>ViewModel 接收「书籍 → 分组」或「书籍 → 书籍」意图，只传稳定 ID；维护提交状态、拒绝重复请求，并通过现有事件通道发送成功或失败提示。</li>
+    <li>Repository 执行业务校验与后台 I/O，DAO 提供事务方法。自动命名规则可抽成纯函数，便于单元测试。</li>
+    <li>写入成功后，由数据库观察流刷新书籍、分类和数量；合并首页数据时避免短暂出现新分类已显示但两本书仍在顶层的半成品画面。</li>
+  </ul>
+  <h3>4.3 建议修改位置</h3>
+  <p><code>ui/BookshelfScreen.kt</code>：手势、目标反馈、浮层和非拖动替代入口；新增独立拖拽状态/协调组件，避免页面继续堆积逻辑。<code>ui/AppViewModels.kt</code>：提交状态和事件；<code>ui/SoNovelReaderApp.kt</code>：回调接线；<code>data/BookRepository.kt</code> 与 <code>data/local/LibraryDao.kt</code>：事务化移动、自动命名和两书合并。本版不改阅读器与分组详情页手势。</p>
+
+  <h2 id="acceptance">5. 验收与测试</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>编号 / 场景</th><th>预期结果</th><th>验证方式</th></tr></thead>
+    <tbody>
+      <tr><td>A01 移入已有分类</td><td>顶层减少 1 本，目标增加 1 本；进组可见该书，重启后归属保留</td><td>Room + UI</td></tr>
+      <tr><td>A02 两书合并</td><td>仅新增 1 个分类，恰好包含两本原书；留在首页，数量为 2</td><td>Room + UI</td></tr>
+      <tr><td>A03 自动命名</td><td>覆盖无同名、连续重名、编号空缺、空分类占名；每次创建独立分类</td><td>单元 + Room</td></tr>
+      <tr><td>A04 无效落点</td><td>自身、空白、标题、工具栏、导航、新建卡片与更多按钮均不修改归属；无效松手时浮层动画回位，恢复后可再次操作</td><td>UI</td></tr>
+      <tr><td>A05 手势兼容</td><td>短按开书；长按不再弹首页书籍菜单；普通滑动滚动；更多可用；分类长按菜单及详情页不回归</td><td>UI + 设备</td></tr>
+      <tr><td>A06 滚动与命中</td><td>从靠后位置拖到靠前分类，上下边缘可滚动；滚动后高亮和实际落点一致</td><td>UI + 设备</td></tr>
+      <tr><td>A07 取消与中断</td><td>返回、后台、多指、旋转、手势取消均清理浮层；未提交不改库，已提交结果保持一致</td><td>UI + 设备</td></tr>
+      <tr><td>A08 失效与并发</td><td>提交前书或分类被删除、归属变化、重复请求或相反方向同时合并时，仅合法操作成功，无重复分类和部分移动</td><td>Room + 状态层</td></tr>
+      <tr><td>A09 事务回滚</td><td>模拟插入失败或移动第二本失败，分类、两书归属均回到事务前状态</td><td>Room instrumentation</td></tr>
+      <tr><td>A10 关联数据</td><td>移动前后书籍 ID、内容路径、阅读进度、书签不变，继续阅读和朗读可用</td><td>Room + 设备</td></tr>
+      <tr><td>A11 排序与刷新</td><td>新分类追加到分组末尾；书籍排序规则不变；无半成品画面，提交中不可再次整理</td><td>UI</td></tr>
+      <tr><td>A12 可访问性与布局</td><td>读屏可通过菜单移动及语义操作合并；中文长名、无封面、深色模式、不同网格列数均可辨认目标</td><td>UI + 设备</td></tr>
+      <tr><td>A13 失败恢复</td><td>失败提示与数据库结果一致，无遗留新分类；随后可重新拖动并成功</td><td>Room + UI</td></tr>
+    </tbody>
+  </table></div>
+  <p>实现完成标准：核心两条路径、自动命名、事务回滚及手势冲突有自动化覆盖；在 Android 设备上验证长距离拖动、自动滚动和取消行为；运行现有相关回归测试。交付时分别记录实际通过的检查和仍需人工验证的项目。</p>
+
+  <h2 id="review">6. 已确认的产品边界</h2>
+  <ol>
+    <li><strong>范围：</strong>首版仅在首页拖动，组内移动继续使用菜单；如需组内拖出、跨分类拖动，应扩充目标呈现与导航方案。</li>
+    <li><strong>入口：</strong>首页书籍长按改为拖动，管理操作保留在「更多」；组内长按暂不改。</li>
+    <li><strong>命名与结果：</strong>使用「未命名分类 / 未命名分类 2 / …」，松手直接完成，不要求输入名称，不自动进入新分类。</li>
+  </ol>
+  <h2 id="verification">7. 实现与验证记录</h2>
+  <p>实现日期：2026-10-17。已实现首页长按拖动、已有分组接收、两书自动建分类、名称避重、悬停高亮、浮层预览、边缘自动滚动、忙碌反馈及无障碍替代操作；支持返回、多指、列表变化和生命周期中断时取消拖动。</p>
+  <ul>
+    <li>数据库继续使用版本 3，无 schema 变更。两种拖放写入均使用 Room 事务，首页以事务快照刷新。</li>
+    <li><code>bash ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest</code> 通过；42 项单元测试通过。</li>
+    <li>Android 16 / API 36 的 P0110 设备上，完整 instrumentation 测试 39 项全部通过，包含 17 项本功能数据库/UI 测试，以及现有迁移、书签和阅读器回归。浮层视觉微调后另行复验 11 项书架 UI 测试，全部通过。</li>
+    <li>验证了真实 EPUB 导入后经 UI 拖放、ViewModel 到数据库的完整归类路径；覆盖并发反向合并、编号分配、写入失败回滚、关联数据保留及数量不变时的 Flow 刷新。</li>
+    <li>已检查设备上的拖动预览截图，浮层缩小后目标描边与分类名称可见。设备验证了长距离向上自动滚动、源卡片回收后继续拖动、返回取消、列表变化取消、多指取消、点按/更多菜单和无障碍语义入口。</li>
+    <li>尚未逐项人工验收：后台切换与旋转的真实系统事件、向下自动滚动的手感、深色模式/超长名称的视觉效果、真实读屏操作及播放中的音频连续性。相关取消与主题适配代码已接入；自动测试不替代这些人工体验检查。</li>
+  </ul>
+  <p>v1.1 补充：无效落点松手后增加书籍回位、缩放还原和原卡片衔接动画；原卡片已回收时先恢复起始视野。构建与 42 项单元测试通过；NX888J 上 13 项书架 UI 测试全部通过，新增测试验证回位中间轨迹、动画期间防误点、动画结束恢复操作，以及源卡片回收后的滚动归位。新版已覆盖安装到 NX888J，保留现有应用数据。</p>
+  <p>已生成 Debug APK，并以覆盖安装方式在连接设备完成测试，保留原应用数据。测试导入的书籍与创建的分类在测试结束后清理。</p>
+  <footer>此文档记录功能行为、实现约束及验证结果；顶部示意图为静态说明。</footer>
+</main>
+</body>
+</html>
