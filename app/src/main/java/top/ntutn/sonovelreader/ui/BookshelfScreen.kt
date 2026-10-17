@@ -3,18 +3,12 @@ package top.ntutn.sonovelreader.ui
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,15 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DriveFileMove
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -50,28 +40,19 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
-import java.io.File
-import top.ntutn.sonovelreader.data.EditGroupState
-import top.ntutn.sonovelreader.data.MoveBookState
 import top.ntutn.sonovelreader.data.ShelfBook
 import top.ntutn.sonovelreader.data.ShelfGroup
 
@@ -321,7 +302,7 @@ fun BookshelfScreen(
     // 移动书籍到分组
     val mb = state.movingBook
     if (mb != null) {
-        MoveBookPickerDialog(
+        BookshelfMoveBookPickerDialog(
             moveState = mb,
             groups = state.groups,
             onDismiss = onCancelMoveBook,
@@ -360,475 +341,4 @@ private fun EmptyShelf(onImport: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = onImport) { Text("选择书籍") }
     }
-}
-
-// ================================================
-// 分组卡片
-// ================================================
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun GroupCard(
-    group: ShelfGroup,
-    drag: ShelfDragState,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    val target = ShelfDropTarget.Group(group.id)
-    LaunchedEffect(menuExpanded) { drag.openMenus[target] = menuExpanded }
-    Column(
-        Modifier.shelfDragCard(drag, ShelfDragItem(target, group.name))
-            .fillMaxWidth()
-            .combinedClickable(
-                enabled = enabled,
-                onClick = onClick,
-                onLongClick = { menuExpanded = true },
-            ),
-    ) {
-        Box {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(166.dp)
-                    .testTag("shelf-group-${group.id}")
-                    .shelfDropCover(drag, target),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(
-                        Icons.Default.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        group.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-            // 右上角：数量角标 + 更多按钮
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.height(20.dp),
-                    ) {
-                        Text(
-                            "${group.bookCount}",
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(2.dp))
-                    Box {
-                        IconButton(
-                            enabled = enabled,
-                            onClick = { menuExpanded = true },
-                            modifier = Modifier
-                                .onGloballyPositioned { drag.menus[target] = it.boundsInRoot() }
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    MaterialTheme.colorScheme.surface
-                                        .copy(alpha = 0.78f),
-                                ),
-                        ) {
-                            Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "分组「${group.name}」的更多操作",
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("重命名分组") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onRename()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Edit, contentDescription = null)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("删除分组") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onDelete()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Delete, contentDescription = null)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        // 名字占位：为了与书籍卡片底部的两行标题对齐，保持布局平衡
-        Text(
-            group.name,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            "分组 · ${group.bookCount} 本",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-// ================================================
-// "新建分组" 卡片
-// ================================================
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun AddGroupCard(onClick: () -> Unit, enabled: Boolean) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = onClick, enabled = enabled),
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(166.dp),
-            shape = RoundedCornerShape(10.dp),
-        ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    )
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "新建分组",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "新建分组",
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            " ", // 占位：保持与书籍/分组卡片相同两行高度
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-// ================================================
-// 书籍卡片
-// ================================================
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun BookCard(
-    book: ShelfBook,
-    drag: ShelfDragState,
-    enabled: Boolean,
-    onPairBook: () -> Unit,
-    canPair: Boolean,
-    onOpenBook: (String) -> Unit,
-    onDeleteBook: (String) -> Unit,
-    onMoveBook: () -> Unit,
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    val target = ShelfDropTarget.Book(book.id)
-    LaunchedEffect(menuExpanded) { drag.openMenus[target] = menuExpanded }
-    Column(
-        Modifier.shelfDragCard(drag, ShelfDragItem(target, book.title, book))
-            .testTag("shelf-book-${book.id}")
-            .semantics {
-                customActions = if (!enabled) emptyList() else buildList {
-                    add(CustomAccessibilityAction("移动到分组") { onMoveBook(); true })
-                    if (canPair) add(CustomAccessibilityAction("与其他书籍创建分类") { onPairBook(); true })
-                }
-            }
-            .fillMaxWidth()
-            .combinedClickable(
-                enabled = enabled,
-                onClick = { onOpenBook(book.id) },
-            ),
-    ) {
-        Box {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(166.dp)
-                    .testTag("shelf-cover-${book.id}")
-                    .shelfDropCover(drag, target),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                if (book.coverPath != null) {
-                    AsyncImage(
-                        model = File(book.coverPath),
-                        contentDescription = "${book.title}封面",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    GeneratedBookCover(
-                        title = book.title,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp),
-            ) {
-                IconButton(
-                    enabled = enabled,
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier
-                        .onGloballyPositioned { drag.menus[target] = it.boundsInRoot() }
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            MaterialTheme.colorScheme.surface
-                                .copy(alpha = 0.78f),
-                        ),
-                ) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = "书籍『${book.title}』的更多操作",
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("移动到分组…") },
-                        onClick = {
-                            menuExpanded = false
-                            onMoveBook()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.DriveFileMove, contentDescription = null)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("与其他书籍创建分类") },
-                        enabled = canPair,
-                        onClick = { menuExpanded = false; onPairBook() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("删除书籍") },
-                        onClick = {
-                            menuExpanded = false
-                            onDeleteBook(book.id)
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Delete, contentDescription = null)
-                        },
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            book.title,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            book.authors,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-// ================================================
-// 新建 / 重命名分组对话框
-// ================================================
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditGroupDialog(
-    state: EditGroupState,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var text by remember(state) { mutableStateOf(state.initialName) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                if (state.editingId == null) "新建分组"
-                else "重命名分组"
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("分组名") },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(text) }) { Text("确定") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),
-    )
-}
-
-// ================================================
-// 移动书籍到分组 选择对话框
-// ================================================
-
-@Composable
-private fun MoveBookPickerDialog(
-    moveState: MoveBookState,
-    groups: List<ShelfGroup>,
-    onDismiss: () -> Unit,
-    onConfirm: (targetGroupId: String?) -> Unit,
-    onCreateNewGroup: () -> Unit = {},
-) {
-    val title = remember(moveState.bookTitle) {
-        "移动《${moveState.bookTitle}》到…"
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // 顶层
-                val currentIsTop = moveState.currentGroupId == null
-                TextButton(
-                    onClick = { onConfirm(null) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Default.AutoStories, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("书架顶层")
-                        if (currentIsTop) {
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                "（当前）",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
-                groups.forEach { g ->
-                    val selected = g.id == moveState.currentGroupId
-                    TextButton(
-                        onClick = { onConfirm(g.id) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Start,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(Icons.Default.Folder, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(g.name)
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                "（${g.bookCount} 本）",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            if (selected) {
-                                Spacer(Modifier.weight(1f))
-                                Text(
-                                    "（当前）",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                    }
-                }
-                // 新建分组
-                if (groups.isEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                }
-                TextButton(
-                    onClick = onCreateNewGroup,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("新建分组")
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-        dismissButton = { },
-    )
 }
