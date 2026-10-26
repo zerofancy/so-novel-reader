@@ -42,6 +42,8 @@
 
 生成的调试 APK 位于 `app/build/outputs/apk/debug/`。
 
+Release 签名支持通过系统钥匙圈管理密码，配置和初始化步骤见 [Gradle 钥匙圈签名说明](docs/keyring-signing.html)。
+
 运行单元测试：
 
 ```bash

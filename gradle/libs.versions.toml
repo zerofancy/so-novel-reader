@@ -21,6 +21,7 @@ ksp = "2.3.10"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 timber = "5.0.1"
+gradleKeyring = "0.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -58,6 +59,7 @@ ptqflipper = { module = "com.github.FantasticPornTaiQiang:PTQFlipper", version.r
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 [plugins]
+keyring = { id = "me.okonecny.gradle-keyring", version.ref = "gradleKeyring" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
