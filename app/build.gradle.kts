@@ -128,6 +128,7 @@ room {
 }
 
 dependencies {
+    implementation(project(":ptqflipper"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -152,7 +153,6 @@ dependencies {
     implementation(libs.epub4j.core) {
         exclude(group = "xmlpull")
     }
-    implementation(libs.ptqflipper)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)

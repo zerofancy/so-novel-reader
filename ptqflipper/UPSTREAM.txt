@@ -1,0 +1,21 @@
+PTQFlipper local adaptation
+
+Upstream: https://github.com/FantasticPornTaiQiang/PTQFlipper
+Version: 1.1.0
+Source: https://jitpack.io/com/github/FantasticPornTaiQiang/PTQFlipper/1.1.0/PTQFlipper-1.1.0-sources.jar
+License: MIT, Copyright (c) 2023 MPGA
+License: LICENSE; a copy ships in src/main/assets/licenses/PTQFlipper.txt.
+
+The original renderer, bitmap cache and geometry are retained. The 1,879-line
+inner implementation is separated into engine state, gestures, drawing,
+geometry, paths and primitives to meet this project's 500-line limit.
+Touch taps and hardware keys now call CurlEngine.animateTap and share the
+same animation completion callback. The adapter exposes readiness, busy
+state and cancellation without injecting pointer events. Layout changes
+recreate the engine; focus/lifecycle changes cancel pending navigation.
+The dispatchDraw signature is updated for the current Android SDK.
+
+This Android library is independent of the reader app. PTQPageTurnController
+exposes readiness, busy state, animated page turns and cancellation. The app
+owns volume-key routing and reading/TTS policy, and adapts its navigation to
+that public controller. No app classes or resources are used by this module.

@@ -135,6 +135,7 @@ internal fun FlipReader(
             PTQBookPageView(
                 modifier = Modifier.fillMaxSize(),
                 state = ptqStateHolder,
+                pageTurnController = rememberFlipPageNavigation(),
                 config = config.copy(pageColor = palette.background, disabled = !navigationEnabled),
             ) {
                 onTurnPageRequest { _, isNextOrPrevious, success ->

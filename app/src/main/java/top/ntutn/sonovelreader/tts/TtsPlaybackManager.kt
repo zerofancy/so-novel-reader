@@ -11,6 +11,8 @@ import top.ntutn.sonovelreader.data.ReaderSettings
 class TtsPlaybackManager(private val context: Context) {
     private val mutableState = MutableStateFlow(TtsPlaybackState())
     val state = mutableState.asStateFlow()
+    var startPending: Boolean = false
+        private set
 
     fun play(bookId: String, locator: ReaderLocator, settings: ReaderSettings) {
         val intent = commandIntent(TtsPlaybackService.ACTION_PLAY).apply {
@@ -19,12 +21,14 @@ class TtsPlaybackManager(private val context: Context) {
             putExtra(TtsPlaybackService.EXTRA_CHAPTER_FRACTION, locator.chapterFraction)
             putSettings(settings)
         }
-        ContextCompat.startForegroundService(context, intent)
+        requestStart { ContextCompat.startForegroundService(context, intent) }
     }
 
     fun pause() = context.startService(commandIntent(TtsPlaybackService.ACTION_PAUSE))
 
-    fun resume() = ContextCompat.startForegroundService(context, commandIntent(TtsPlaybackService.ACTION_RESUME))
+    fun resume() = requestStart {
+        ContextCompat.startForegroundService(context, commandIntent(TtsPlaybackService.ACTION_RESUME))
+    }
 
     fun stop() = context.startService(commandIntent(TtsPlaybackService.ACTION_STOP))
 
@@ -33,7 +37,18 @@ class TtsPlaybackManager(private val context: Context) {
     }
 
     internal fun publish(state: TtsPlaybackState) {
+        startPending = false
         mutableState.value = state
+    }
+
+    private inline fun requestStart(start: () -> Unit) {
+        startPending = true
+        try {
+            start()
+        } catch (error: Exception) {
+            startPending = false
+            throw error
+        }
     }
 
     private fun commandIntent(action: String) = Intent(context, TtsPlaybackService::class.java).setAction(action)

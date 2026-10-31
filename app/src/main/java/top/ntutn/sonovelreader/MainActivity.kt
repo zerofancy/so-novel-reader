@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,6 +14,30 @@ import top.ntutn.sonovelreader.ui.SoNovelReaderApp
 import top.ntutn.sonovelreader.ui.theme.SoNovelReaderTheme
 
 class MainActivity : ComponentActivity() {
+    private val volumeKeys = VolumeKeyRouter()
+    internal var volumePageHandler: ((Boolean) -> Boolean)? = null
+    internal var cancelVolumeNavigation: (() -> Unit)? = null
+    internal val playbackManager get() = (application as SoNovelReaderApplication).container.ttsPlaybackManager
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode !in setOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            return super.dispatchKeyEvent(event)
+        }
+        val consumed = when (event.action) {
+            KeyEvent.ACTION_DOWN -> volumeKeys.down(event.keyCode, event.repeatCount, event.isCanceled) {
+                volumePageHandler?.invoke(event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) == true
+            }
+            KeyEvent.ACTION_UP -> volumeKeys.up(event.keyCode)
+            else -> false
+        }
+        return consumed || super.dispatchKeyEvent(event)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) cancelVolumeNavigation?.invoke()
+    }
+
     private val mutableSharedUris = MutableStateFlow<List<Uri>>(emptyList())
     val sharedUris = mutableSharedUris.asStateFlow()
     private val mutableRequestedTtsBookId = MutableStateFlow<String?>(null)

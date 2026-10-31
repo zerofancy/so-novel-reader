@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>沉浸阅读音量键翻页 Spec</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 40px auto; padding: 0 24px 60px; max-width: 1000px;
+      font: 16px/1.8 system-ui,sans-serif; color: #243044; background: #fafbfc; }
+    h1,h2,h3 { line-height: 1.4; }
+    h2 { margin-top: 36px; border-bottom: 1px solid #d8dfe8; padding-bottom: 10px; }
+    table { border-collapse: collapse; width: 100%; background: white; }
+    th,td { border: 1px solid #d8dfe8; padding: 10px 12px; text-align: left; vertical-align: top; }
+    th,.note { background: #eef3fa; }
+    .note { padding: 16px 20px; border-radius: 10px; }
+    code { overflow-wrap: anywhere; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #dce3ee; background: #171c24; }
+      table { background: #202734; } th,.note { background: #29364a; }
+      th,td,h2 { border-color: #425069; }
+    }
+  </style>
+</head>
+<body><main>
+  <p>已实现 · 2026-10-31 · 验证记录见第 8 节</p>
+  <h1>沉浸阅读音量键翻页</h1>
+  <p class="note">阅读控制栏已隐藏、没有开启语音朗读时，音量＋翻到上一页，音量－翻到下一页。
+    翻页后保持沉浸状态，不弹出系统音量面板，不改变系统音量。</p>
+
+  <h2>1. 范围与默认决策</h2>
+  <p>仅覆盖横向分页（PAGED）和仿真翻页（FLIP）。滚动模式（SCROLL）不支持音量键翻页，音量键交给系统默认处理。
+    自动生效，不增加设置项、权限、数据库字段或迁移；不改变现有触摸翻页、阅读模式和沉浸模式入口。</p>
+  <ul>
+    <li>音量＋：上一页；音量－：下一页。</li>
+    <li>一次完整按压最多执行一次；长按不连续翻页。</li>
+    <li>本功能将“朗读已开启”定义为 PREPARING、PLAYING、PAUSED。
+      暂停时会话仍可继续，因此保留音量调节；IDLE、ERROR、COMPLETED 允许音量键翻页。</li>
+    <li>朗读状态以应用全局播放状态为准：即使朗读的是另一本书，也保留音量调节。</li>
+  </ul>
+
+  <h2>2. 当前实现依据</h2>
+  <ul>
+    <li><code>MainActivity.kt</code> 目前没有音量键事件路由。</li>
+    <li><code>ReaderScreen.kt</code> 以 <code>controlsVisible</code> 管理工具栏及状态栏；
+      沉浸信息栏在控制栏退出动画结束后显示。目录／书签面板和书签命名对话框有独立状态。</li>
+    <li><code>PagedReader.kt</code> 持有 PagerState，触摸点按调用翻页动画；
+      通过 settledPage 和滚动结束状态回报进度及跨章。</li>
+    <li><code>FlipReader.kt</code> 使用 PTQBookPageView；现有触摸翻页在动画完成回调中更新位置、处理跨章。</li>
+    <li>两种分页阅读器使用含相邻章预览页的窗口。<code>VerticalReader.kt</code> 使用 LazyColumn，
+      已有滚动进度回报和章节边界导航。</li>
+    <li><code>TtsModels.kt</code> 定义六种朗读状态；<code>ReaderViewModel.kt</code>
+      订阅全局播放状态，并将 PAUSED 作为可恢复朗读处理。</li>
+  </ul>
+
+  <h2>3. 生效条件与事件归属</h2>
+  <p>开始按压时，以下条件必须全部成立：</p>
+  <ol>
+    <li>当前页面是 PAGED 或 FLIP 阅读正文，Activity 处于 RESUMED 且窗口拥有焦点。</li>
+    <li>工具栏已完全隐藏，退出动画已结束；没有目录／书签面板、对话框、权限弹窗或其他覆盖交互层。</li>
+    <li>书籍、定位和正文有效，首次加载、章节加载、跳转及排版恢复均已结束。</li>
+    <li>全局朗读状态不属于 PREPARING、PLAYING、PAUSED。</li>
+  </ol>
+  <table>
+    <thead><tr><th>状态</th><th>新一次音量键按压</th></tr></thead>
+    <tbody>
+      <tr><td>符合全部条件，阅读器空闲</td><td>应用消费事件并尝试翻页。</td></tr>
+      <tr><td>符合条件，但触摸拖动／翻页动画正在进行</td><td>消费并丢弃本次操作，不排队、不调整音量。</td></tr>
+      <tr><td>符合条件，但已经到达全书首尾</td><td>消费事件，保持当前位置，不调整音量、不重复提示。</td></tr>
+      <tr><td>SCROLL 模式（含沉浸且未开启朗读）</td><td>交给系统默认处理，不翻页、不滚动正文。</td></tr>
+      <tr><td>任一生效条件不成立</td><td>交给系统默认处理，不翻页。</td></tr>
+    </tbody>
+  </table>
+  <p>这里的沉浸状态由阅读控制栏状态决定；系统状态栏因边缘手势短暂浮现，不自动退出音量键翻页模式。
+    若系统覆盖层取得窗口焦点，则按窗口焦点规则停用。</p>
+
+  <h3>3.1 一次按压的规则</h3>
+  <ul>
+    <li>在首次 ACTION_DOWN（repeatCount 为 0）确定本次按压归属；归应用处理的按压立即尝试翻页。</li>
+    <li>归应用处理的 repeat DOWN 与匹配 UP 均消费，不再次翻页；取消事件不触发操作。</li>
+    <li>按压期间唤出工具栏、进入加载或启动朗读时，已归应用的按压仍只消费剩余事件，
+      不产生新翻页；下一次全新按压根据最新状态判断。归系统的按压中途不会被应用接管。</li>
+    <li>同时按两颗音量键时，后按下的一颗不触发第二次翻页；已开始的操作不回滚。
+      应用不注册组合键功能；系统保留的组合键及无障碍快捷键遵循平台事件优先级。</li>
+    <li>页面退出、失焦或生命周期停止时取消未执行的翻页命令并释放页面回调。
+      残余 UP／重复 DOWN 不得成为一次新翻页；重新获得焦点后须重新按下。</li>
+    <li>只处理 VOLUME_UP 和 VOLUME_DOWN；静音键、媒体播放键及其他按键沿用现有行为。</li>
+  </ul>
+
+  <h2>4. 各阅读模式的翻页语义</h2>
+  <table>
+    <thead><tr><th>模式</th><th>一次有效操作</th><th>章节边界</th></tr></thead>
+    <tbody>
+      <tr><td>PAGED</td><td>从当前稳定页移动一页，使用现有横向翻页动画。</td>
+        <td>章末下一页进入下一章首页；章首上一页进入上一章末页，复用相邻章窗口及现有加载逻辑。</td></tr>
+      <tr><td>FLIP</td><td>移动一页，使用仿真翻页动画；动画完成后提交进度。</td>
+        <td>同 PAGED。不得以修改章节进度直接跳页来替代翻页动画。</td></tr>
+      <tr><td>SCROLL</td><td>不处理音量键，保持系统音量功能。</td>
+        <td>音量键不触发滚动或跨章；原有触摸滚动及章节导航保持不变。</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>全书首尾夹取到合法位置，不循环、不退出阅读器、不跳过空章节。</li>
+    <li>跨章目标尚未缓存时发起一次现有章节加载；加载期间的新按压按第 3 节交给系统，不积攒翻页。</li>
+    <li>加载失败沿用现有错误展示／提示，不能提交目标章的虚假进度；恢复后不自动补执行失败或丢弃的按键。</li>
+    <li>翻页不唤出工具栏；章节标题、页码与实际展示位置同步，沿用当前阅读进度保存机制。</li>
+    <li>旋转、字体调整、阅读模式切换、书签或目录跳转后，以新布局恢复完成的实际位置为起点；
+      旧章节、旧布局或旧书籍的命令不得继续执行。</li>
+  </ul>
+
+  <h2>5. 实现约束与建议</h2>
+  <ol>
+    <li>Activity 统一接收硬件按键并维护按压归属。阅读页按生命周期注册、注销处理能力，
+      使用最新状态判断；未处理事件继续走系统默认分发。避免仅依赖 Compose 正文获得键盘焦点。</li>
+    <li>阅读页提供统一“上一页／下一页”命令与可用／忙碌状态，两种分页阅读器适配各自实际位置；滚动阅读器不注册翻页能力。
+      触摸与音量键共享翻页入口、边界判断和进度提交，不复制章节导航规则。</li>
+    <li>命令不持久化、不缓冲；携带或绑定书籍、章节和排版代次。
+      状态变化时取消旧任务，协程取消不得补写过期进度。</li>
+    <li>PAGED 使用实际稳定页索引及动画状态，不用 chapterFraction 加减固定比例模拟翻页。</li>
+    <li>FLIP 依赖独立 Android Library 模块 :ptqflipper，模块基于 PTQFlipper 1.1.0 适配。按键与触摸共用 CurlEngine.animateTap
+      及动画完成回调；通过明确的就绪、忙碌和取消接口控制翻页，不注入屏幕触摸坐标。
+      保留原有卷页几何与位图渲染，附带 MIT 许可，并按职责拆分以满足文件行数限制。</li>
+    <li>朗读启动请求发出至 PREPARING 发布之间也应立即停用翻页，避免异步状态空窗。
+      停止、失败或完成后以最新终态恢复能力。</li>
+  </ol>
+  <p>源码位于 ptqflipper/src/main/java/ptq/mpga/ptqbookpageview/widget，来源和改动说明见 ptqflipper/UPSTREAM.txt。
+    app 通过项目依赖使用此库，翻页库源码及许可资源不再位于 app 模块内。</p>
+
+  <h2>6. 验收标准</h2>
+  <table>
+    <thead><tr><th>场景</th><th>预期</th></tr></thead>
+    <tbody>
+      <tr><td>PAGED／FLIP，沉浸、朗读 IDLE，分别短按音量＋／－</td>
+        <td>方向及单页移动符合第 4 节；保持沉浸，无音量面板，系统音量值不变。</td></tr>
+      <tr><td>工具栏显示或显隐动画中、目录／书签／命名对话框、设置页、书架</td>
+        <td>不翻页，系统正常处理音量。</td></tr>
+      <tr><td>PREPARING、PLAYING、PAUSED，含另一本书的朗读</td>
+        <td>不翻页，系统音量功能正常；启动请求后的状态发布空窗同样不翻页。</td></tr>
+      <tr><td>朗读停止、ERROR、COMPLETED 后再次进入沉浸阅读</td><td>新的按压恢复翻页。</td></tr>
+      <tr><td>长按、repeat DOWN、多次 UP、取消事件</td><td>一次按压最多一页；不因重复或抬起额外翻页。</td></tr>
+      <tr><td>快速连按、双键重叠、触摸拖动中按键</td><td>忙碌时丢弃，不排队、不打断动画、不重复跨章。</td></tr>
+      <tr><td>按住过程中打开工具栏／启动朗读／失焦，再松开</td><td>无新增翻页，归属不在半途切换；下一次按压按最新状态处理。</td></tr>
+      <tr><td>章首、章末、全书首尾、空章、单页章、未缓存相邻章</td>
+        <td>正确跨章或停留；加载只发起一次，失败不写错误进度，无回绕。</td></tr>
+      <tr><td>SCROLL 长章、短章及章首章末，含沉浸且朗读 IDLE</td><td>音量键保持系统默认行为，不滚动、不翻页、不跨章。</td></tr>
+      <tr><td>FLIP 按键翻页及跨章</td><td>卷页动画可见，完成后更新定位，页内章节和页码匹配，无直接跳帧。</td></tr>
+      <tr><td>旋转、模式切换、跳转、进后台、锁屏、重新进入阅读页</td>
+        <td>无旧命令或回调泄漏；基于恢复完成的位置翻页，后台不拦截音量。</td></tr>
+      <tr><td>退出重进、触摸翻页、朗读跟随及进度恢复回归</td><td>原有交互及保存行为正常。</td></tr>
+    </tbody>
+  </table>
+  <p>验证分三层：单元测试覆盖状态矩阵、按压归属、repeat／取消及忙碌丢弃；
+    阅读器集成测试覆盖两种分页模式的动画、跨章和过期命令，以及 SCROLL 不拦截音量键；
+    已连接实机执行真实音量键与 ADB 按键，核对系统音量前后值、音量面板、前后台和朗读状态切换。
+    系统保留组合键及 TalkBack 音量键快捷操作需实机回归，不以事件注入测试代替。</p>
+
+  <h2>7. 评审关注点</h2>
+  <p>当前约定：暂停朗读仍保留音量功能；长按不连续翻页；滚动模式不支持音量键翻页；
+    不增加开关。以上约定已落实到实现及相应测试。</p>
+  <h2>8. 实现与验证记录（2026-10-31）</h2>
+  <ul>
+    <li>MainActivity 按完整按压维护事件归属；ReaderVolumeKeys 读取即时加载与朗读状态，
+      并校验当前正文与已渲染快照一致，避免跨章后使用过期能力。</li>
+    <li>PAGED 的触摸点按与按键共享分页导航入口；FLIP 的触摸点按与按键共享卷页动画入口。
+      页面销毁、窗口失焦及生命周期暂停时取消任务；切换书籍重新绑定能力。</li>
+    <li>48 项 JVM 单元测试通过，包含新增的 6 项按键归属和模式／朗读状态矩阵测试。</li>
+    <li>NX888J（Android 16 / API 36）18 项设备测试通过，覆盖新按键集成、动画忙碌与取消，
+      以及原有触摸跨章、滚动、朗读高亮和沉浸信息栏回归。</li>
+    <li>按键集成测试通过系统事件注入验证音量＋／－、双向跨章、全书首尾、长按、面板禁用；
+      注入 PREPARING／PLAYING／PAUSED 状态（含另一书籍）验证全局朗读限制。
+      检查系统媒体音量：有效翻页时不变，工具栏可见、朗读会话及 SCROLL 时可调整；测试后恢复音量和阅读模式。</li>
+    <li>检查 PAGED／FLIP 沉浸截图；临时测试书籍在测试完成后删除。
+      文件行数检查及检查器的 13 项回归测试通过。</li>
+  </ul>
+  <p>未进行人工实体按键、系统保留组合键、TalkBack 快捷键、锁屏和多窗口组合验收；
+    注入朗读状态的验证不代表已完成真实语音播放全流程验收。</p>
+  <p>验证操作事故：首次 Gradle connectedDebugAndroidTest 在结束时自动卸载应用并清除原应用本地数据。
+    已重新安装应用；原数据未恢复。后续验证均改为 adb install -r 与直接运行 instrumentation，避免自动卸载。</p>
+  <h2>9. 独立模块边界</h2>
+  <p>:ptqflipper 仅依赖 Android 与 Compose，负责卷页渲染、位图缓存、手势和动画生命周期。
+    对外提供 PTQBookPageView 及 PTQPageTurnController；控制器公开就绪、忙碌、翻页和取消能力。
+    模块不引用 app 类、书籍模型、朗读状态或音量键事件。</p>
+  <p>app 使用 FlipPageNavigation 将阅读器的导航能力接到库控制器，继续管理沉浸状态、朗读限制、
+    章节切换、进度与硬件按压归属。原有音量键行为和动画提交时机保持本 spec 的定义。</p>
+  <p>许可原文保留在 ptqflipper/LICENSE，并通过模块 assets 随应用打包。</p>
+  <p>拆分后验证：:ptqflipper:assembleDebug 独立产出 AAR，应用与测试 APK 编译成功，
+    48 项单元测试、NX888J 上 18 项设备测试再次全部通过；确认最终 APK 包含模块许可。
+    使用 adb install -r 覆盖安装并直接执行 instrumentation，未运行自动卸载流程。
+    测试前后核对原有书库、阅读进度、书签、分组记录及 755 个书籍和设置文件，数据一致。</p>
+</main></body>
+</html>

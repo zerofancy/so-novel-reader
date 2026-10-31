@@ -11,17 +11,19 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.selected
@@ -31,7 +33,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import top.ntutn.sonovelreader.data.ReaderContent
 import top.ntutn.sonovelreader.data.ReaderPageItem
 import top.ntutn.sonovelreader.data.ReaderSettings
@@ -95,7 +96,6 @@ internal fun PagedReader(
                 pageCount = window::size,
             )
         }
-        val scope = rememberCoroutineScope()
         var restored by remember(chapterKey, content) { mutableStateOf(false) }
 
         LaunchedEffect(pagerState) {
@@ -129,26 +129,35 @@ internal fun PagedReader(
             if (targetPage >= 0 && targetPage + pageOffset != pagerState.currentPage) pagerState.animateScrollToPage(targetPage + pageOffset)
         }
 
+        val navigation = rememberPagedNavigation(pagerState, restored && navigationEnabled,
+            onManualNavigation,
+            { if (hasPreviousChapter && previousChapter == null) onPreviousChapter() },
+            { if (hasNextChapter && nextChapter == null) onNextChapter() })
+
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = navigationEnabled,
-            modifier = Modifier.fillMaxSize().pointerInput(pagerState, window, navigationEnabled, hasPreviousChapter, hasNextChapter) {
+            modifier = Modifier.fillMaxSize().pointerInput(navigation) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    navigation.pointerDown = true
+                    try {
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Final)
+                        } while (event.changes.any { it.pressed })
+                    } finally {
+                        navigation.pointerDown = false
+                    }
+                }
+            }.pointerInput(pagerState, window, navigationEnabled, hasPreviousChapter, hasNextChapter) {
                 detectHorizontalReaderGestures(
                     currentPage = { pagerState.currentPage },
                     lastPage = window.lastIndex,
                     onTap = { position ->
                         if (!navigationEnabled) return@detectHorizontalReaderGestures
                         when {
-                            position.x < size.width * 0.32f -> scope.launch {
-                                onManualNavigation()
-                                if (pagerState.currentPage > 0) pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                else if (navigationEnabled && hasPreviousChapter && previousChapter == null) onPreviousChapter()
-                            }
-                            position.x > size.width * 0.68f -> scope.launch {
-                                onManualNavigation()
-                                if (pagerState.currentPage < window.lastIndex) pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                else if (navigationEnabled && hasNextChapter && nextChapter == null) onNextChapter()
-                            }
+                            position.x < size.width * 0.32f -> navigation.turn(false, fromKey = false)
+                            position.x > size.width * 0.68f -> navigation.turn(true, fromKey = false)
                             else -> onToggleControls()
                         }
                     },

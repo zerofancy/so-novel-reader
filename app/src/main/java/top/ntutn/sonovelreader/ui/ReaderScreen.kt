@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,6 +164,13 @@ fun ReaderScreen(
             { viewModel.saveBookmark(it, snapshot, bookmarkTitle) }, onMessage)
     }
 
+    val pageTurner = remember(viewModel) { ReaderPageTurner() }
+    ReaderVolumeKeys(pageTurner,
+        enabled = !controlsTransition.currentState && !controlsTransition.targetState &&
+            !showToc && bookmarkSnapshot == null && !state.loading && !state.contentLoading &&
+            state.error == null && state.parsedBook != null && state.locator != null && state.content != null,
+        viewModel = viewModel, renderedState = state)
+    CompositionLocalProvider(LocalReaderPageTurner provides pageTurner) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         when {
             state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
@@ -448,5 +456,6 @@ fun ReaderScreen(
             }
             state.contentLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
         }
+    }
     }
 }

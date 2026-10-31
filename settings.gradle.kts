@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "So Novel Reader"
 include(":app")
+include(":ptqflipper")
