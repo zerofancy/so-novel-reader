@@ -48,10 +48,10 @@ keyringKeyAlias=your-key-alias</pre>
 # 构建签名 AAB
 ./gradlew --no-configuration-cache :app:bundleRelease</pre>
   <p>也可让本机开关保持关闭，构建时用 <code>-PkeyringSigning=true</code> 临时启用。APK 输出位于 <code>app/build/outputs/apk/release/</code>，AAB 位于 <code>app/build/outputs/bundle/release/</code>。</p>
-  <div class="note">本项目默认开启 Gradle 配置缓存。启用钥匙圈签名时，包括 IDE 同步在内的配置阶段会读取密码，因此必须关闭配置缓存；代码会在读取密码前拒绝缓存请求。常规命令添加 <code>--no-configuration-cache</code>，IDE 使用临时的 <code>-PkeyringSigning=false</code> 或在本机 Gradle 配置中关闭缓存。</div>
-  <p>需要固定启用时，在 <code>local.properties</code> 中设置 <code>keyringSigning=true</code>，并在本机 <code>~/.gradle/gradle.properties</code> 中加入：</p>
+  <div class="note">本项目默认关闭 Gradle 配置缓存。启用钥匙圈签名时，包括 Android Studio 同步在内的配置阶段会读取密码，因此不能使用配置缓存；代码仍会在读取密码前拒绝显式开启缓存的请求。</div>
+  <p>需要固定启用签名时，在 <code>local.properties</code> 中设置 <code>keyringSigning=true</code>。项目的 <code>gradle.properties</code> 已配置：</p>
   <pre>org.gradle.configuration-cache=false</pre>
-  <p>如果设置了 <code>GRADLE_USER_HOME</code>，则修改该目录下的 <code>gradle.properties</code>。用户级配置优先于仓库配置，影响本机该 Gradle 用户的所有项目；命令行参数仍可覆盖。配置完成后，IDE 同步和以下构建命令无需临时签名或缓存参数：</p>
+  <p>IDE 同步和以下构建命令无需额外缓存参数。如果用户级 <code>~/.gradle/gradle.properties</code>、<code>GRADLE_USER_HOME</code> 下的配置或 IDE 参数显式开启了缓存，应移除对应开启项或将其关闭；命令行仍可用 <code>--no-configuration-cache</code> 覆盖。尚未准备凭据的机器可临时设置 <code>-PkeyringSigning=false</code>。完成签名配置后的默认构建命令：</p>
   <pre>./gradlew :app:verifyReleaseSigning :app:assembleRelease</pre>
 
   <h2>凭据映射与行为</h2>

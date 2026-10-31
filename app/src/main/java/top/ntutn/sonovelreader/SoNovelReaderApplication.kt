@@ -28,6 +28,10 @@ class AppContainer(application: Application) {
         "library.db",
     ).build()
 
+    private val updateHttpClient by lazy { top.ntutn.sonovelreader.data.update.createUpdateHttpClient() }
+    val updateChecker by lazy { top.ntutn.sonovelreader.data.update.UpdateChecker(updateHttpClient) }
+    val installedAppInfo by lazy { top.ntutn.sonovelreader.data.update.InstalledAppInfo.read(application) }
+
     val bookRepository = BookRepository(application, database.libraryDao())
     val bookmarkRepository = BookmarkRepository(database.bookmarkDao())
     val progressRepository = ProgressRepository(database.libraryDao())

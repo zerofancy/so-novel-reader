@@ -15,6 +15,9 @@ class AppViewModelFactory(
         modelClass.isAssignableFrom(LibraryViewModel::class.java) ->
             LibraryViewModel(container) as T
 
+        modelClass.isAssignableFrom(UpdateViewModel::class.java) ->
+            UpdateViewModel(container.installedAppInfo, container.updateChecker::check) as T
+
         modelClass.isAssignableFrom(SettingsViewModel::class.java) ->
             SettingsViewModel(container) as T
 

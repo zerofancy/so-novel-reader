@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>拾光阅读 · 检查更新 Spec</title>
+  <style>
+    :root { color-scheme: light; --ink: #233348; --muted: #617084; --line: #dce4ec; --accent: #18695c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: #f1f5f7; font: 16px/1.8 system-ui,sans-serif; }
+    main { max-width: 1060px; margin: 32px auto; padding: 40px 48px 64px; background: white; border: 1px solid var(--line); border-radius: 16px; }
+    h1,h2,h3 { line-height: 1.4; } h1 { font-size: 34px; } h2 { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); }
+    a { color: #17678c; } .meta { color: var(--muted); } .badge { color: var(--accent); background: #e5f3ec; border-radius: 20px; padding: 5px 12px; }
+    .note { padding: 16px 20px; border-left: 4px solid var(--accent); background: #edf7f3; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+    code { background: #edf2f6; padding: 2px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+    pre { padding: 20px; background: #1a2e41; color: #eef5fb; border-radius: 10px; overflow: auto; line-height: 1.6; }
+    pre code { background: none; padding: 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 15px; } th,td { border: 1px solid var(--line); padding: 11px 13px; text-align: left; vertical-align: top; }
+    th { background: #f0f5f8; } .table { overflow-x: auto; } li { margin: 6px 0; }
+    .preview { max-width: 420px; margin: 20px auto; padding: 24px; border: 1px solid var(--line); border-radius: 22px; background: #fbfcff; }
+    .preview h3 { margin-top: 0; } .row { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    .action { padding: 8px 16px; border: 1px solid #a1b8b0; border-radius: 22px; color: var(--accent); white-space: nowrap; }
+    @media(max-width:700px) { main { margin: 0; padding: 24px 18px 44px; border: 0; border-radius: 0; } h1 { font-size: 28px; } table { min-width: 620px; } }
+    @media print { body { background: white; } main { margin: 0; padding: 0; border: 0; } nav { display: none; } h2,h3 { break-after: avoid; } tr { break-inside: avoid; } pre { white-space: pre-wrap; } }
+  </style>
+</head>
+<body><main>
+  <span class="badge">已实现 · 验证边界见第 8 节</span>
+  <h1>拾光阅读 · 检查更新</h1>
+  <p class="meta">2026-10-31 · 客户端基线 3306d7e · 服务端本地基线 d86f815 · 线上只读核查 15:08（Asia/Shanghai）</p>
+  <p class="note">已在设置页实现手动检查更新：通过 Ktor Client 查询 zp.ntutn.top，发现更高版本后由用户选择浏览器下载 APK。构建仅保留 ARM64、X86_64；多项响应选择第一项。正式软件序列和正式版本号保持不变；用户随后授权在独立软件序列发布专用测试包，记录见第 8.2 节。</p>
+  <nav><a href="#research">调研结论</a><a href="#scope">范围</a><a href="#ux">交互</a><a href="#api">接口</a><a href="#rules">版本与架构</a><a href="#errors">异常</a><a href="#implementation">实现建议</a><a href="#acceptance">验收</a><a href="#review">评审决策</a></nav>
+
+  <h2 id="research">1. 调研结论与证据</h2>
+  <p class="meta">本节记录实现前基线，Manifest、依赖和构建配置已按后续章节修改；完成情况见第 8 节。</p>
+  <div class="table"><table>
+    <tr><th>观察</th><th>结论及影响</th><th>依据</th></tr>
+    <tr><td>客户端已有 Compose 设置页及 SettingsViewModel；无版本或更新入口。</td><td>沿用设置导航，在页首增加独立“应用更新”区块，便于长设置页中发现。</td><td>SettingsScreen.kt、SettingsViewModel.kt、SoNovelReaderApp.kt</td></tr>
+    <tr><td>applicationId 为 top.ntutn.sonovelreader，当前 versionName=1.0、versionCode=1。</td><td>安装版本从 PackageManager 获取；服务端以 APK 实际 versionCode 发布，不能使用分发 ID 或日期代替。</td><td>app/build.gradle.kts</td></tr>
+    <tr><td>主 Manifest 没有声明 INTERNET。</td><td>实现时显式增加网络权限；不需要运行时网络权限弹窗。</td><td>app/src/main/AndroidManifest.xml</td></tr>
+    <tr><td>已有 kotlinx.serialization、协程依赖；没有现成的 HTTP 客户端封装。</td><td>按评审意见接入 Ktor Client，使用 OkHttp 引擎，沿用 kotlinx.serialization 解析 JSON。</td><td>app/build.gradle.kts、gradle/libs.versions.toml、现有源码检索</td></tr>
+    <tr><td>服务端公开 GET /api/v1/updates，按完整序列返回最大 versionCode。</td><td>精确指定 software、os、arch、packageType；客户端自行判断是否升级。</td><td>UpdateRoutes.kt、UpdateQuery.kt、UpdateRepository.kt、docs/update-api.html</td></tr>
+    <tr><td>服务端架构枚举只有 ARM64、X86_64；当前 Release APK 同时含 32 位库。</td><td>后续所有构建仅保留 arm64-v8a、x86_64；过滤传递依赖中的 32 位原生库，正式停止支持 32 位安装。</td><td>PlatformTarget.kt；此前本机 Release 产物检查</td></tr>
+    <tr><td>线上精确查询返回 HTTP 404 / SOFTWARE_NOT_FOUND。</td><td>so-novel-reader 目前未注册。功能可实现，成功更新联调需另行发布对应记录。</td><td><a href="https://zp.ntutn.top/api/v1/updates?software=so-novel-reader&amp;os=Android&amp;arch=ARM64&amp;packageType=apk">线上查询</a>（2026-10-31 核查）</td></tr>
+    <tr><td>线上公开下载页只展示 floatclock 的一次分发，包均标记未分类。</td><td>不能用现有公开包证明本项目的成功更新链路；没有执行后台写操作。</td><td><a href="https://zp.ntutn.top/binary">软件下载页</a>（核查时快照）</td></tr>
+  </table></div>
+  <p>同机 fcitx5-android 已有相同服务的客户端，可参考其错误分流、响应大小上限和外部下载交互。本项目同样读取数组第一项，再验证该项的查询维度与字段；不直接照搬其 Debug 独立软件名策略。</p>
+
+  <h2 id="scope">2. 首期范围与默认选择</h2>
+  <ul>
+    <li>只在用户点击时发请求，不做启动自动检查、后台任务、轮询、通知或红点。</li>
+    <li>正式版支持检测及外部下载；Debug 显示当前版本及“调试版本不支持应用内检查更新”，按钮禁用，避免引导安装签名不兼容的正式包。</li>
+    <li>发现更新后需用户点击“前往下载”。不内置下载器、安装器，不申请安装包权限，不自动卸载或安装。</li>
+    <li>接入 Ktor Client；后续 Debug、Release 构建均只支持 ARM64、X86_64，停止打包和支持 32 位原生依赖。</li>
+    <li>不加入数据库字段、Room 迁移或持久化缓存；spec 阶段不改变当前发布版本号。</li>
+    <li>不新增管理服务、不修改 updater-server 接口；正式软件注册和发布单独处理。用户已额外授权在独立测试软件序列上传专用 APK、创建测试分发以验证链路。</li>
+    <li>服务端没有更新日志、强制更新、最低系统版本、校验和或签名字段；首期只展示接口真实提供的信息。</li>
+  </ul>
+
+  <h2 id="ux">3. 入口与交互</h2>
+  <p>设置页标题下、现有 AI 操作及阅读选项之前增加“应用更新”区块。当前版本始终显示为“1.0（1）”这样的版本名与数值版本组合；实际值取自当前安装包。</p>
+  <div class="preview" aria-label="设置页静态交互示意">
+    <h3>应用更新</h3>
+    <p class="meta">当前版本 1.0（1）</p>
+    <div class="row"><span>手动检查新版本</span><span class="action">检查更新</span></div>
+    <p class="meta">点击后检查是否有适用于当前安装的新版。</p>
+  </div>
+  <p class="meta">以上为静态交互示意，实际 UI 沿用现有设置页配色。</p>
+  <div class="table"><table>
+    <tr><th>状态</th><th>区块内容</th><th>操作</th></tr>
+    <tr><td>Idle</td><td>当前版本、检查说明。</td><td>“检查更新”可点击。</td></tr>
+    <tr><td>Checking</td><td>“正在检查更新…”及进度指示。</td><td>检查按钮禁用；重复点击不发第二次请求。</td></tr>
+    <tr><td>Current</td><td>“当前已是最新版本”。服务端低于本机时显示“当前版本高于服务端版本”。</td><td>可再次检查；不显示降级下载入口。</td></tr>
+    <tr><td>Available</td><td>“发现新版本 X（N）”，保留结果及“查看更新”入口。</td><td>本次请求完成时展示一次详情对话框；关闭后可再次查看或重新检查。</td></tr>
+    <tr><td>Unavailable / Error</td><td>按第 6 节显示可理解的原因。</td><td>恢复“重新检查”；不把错误显示为最新版。</td></tr>
+    <tr><td>Unsupported</td><td>Debug 或不支持的架构说明。</td><td>禁用检查，不发请求。</td></tr>
+  </table></div>
+  <p>更新对话框标题“发现新版本”，正文展示当前版本、新版本、分发标题；packageSize 有效时补充格式化大小，未知时省略。说明“将通过浏览器下载 APK，下载后由你确认安装”。按钮为“稍后”和“前往下载”。长标题和版本名支持换行及滚动，服务端文本按纯文本展示。</p>
+  <p>下载链接只在用户点击时通过 ACTION_VIEW 打开。无浏览器或启动失败，保留更新结果并提示“无法打开下载链接，请安装或启用浏览器”。返回应用后不自动重查、不重复弹窗。</p>
+  <p>状态由 ViewModel 持有，重组及旋转不重复发请求；自动弹窗仅由未消费的完成事件触发一次，普通状态恢复不再次弹出。离开设置页后不弹对话框，返回时只保留可查看结果。请求随对应 ViewModel 销毁而取消，进程重建回到 Idle。</p>
+
+  <h2 id="api">4. 请求与响应约定</h2>
+  <pre><code>GET https://zp.ntutn.top/api/v1/updates
+    ?software=so-novel-reader
+    &amp;os=Android
+    &amp;arch=ARM64
+    &amp;packageType=apk
+Accept: application/json</code></pre>
+  <p>以上 arch 是示例，实际采用第 5 节解析结果。固定 HTTPS 源，不提供用户编辑服务器地址入口；无需登录、Cookie、PoW 或管理员令牌。查询不发送当前版本、设备标识、书籍信息或阅读进度。</p>
+  <div class="table"><table>
+    <tr><th>字段</th><th>客户端要求</th></tr>
+    <tr><td>items</td><td>HTTP 200 时必须是非空数组；多项时直接选择 items[0]，只解析和校验第一项，忽略后续项的业务结构。空数组、缺失或非数组为无效响应。</td></tr>
+    <tr><td>items[0].software / os / arch / packageType</td><td>与本次四个查询值严格一致，不跨架构、跨类型选包。</td></tr>
+    <tr><td>latest.packageType</td><td>必须为 apk。</td></tr>
+    <tr><td>latest.versionCode</td><td>必须是十进制数字字符串，可无损解析为正 Long；拒绝负数、小数、溢出及数值 JSON 类型。</td></tr>
+    <tr><td>latest.versionName</td><td>非空白字符串，仅用于展示。</td></tr>
+    <tr><td>latest.distributionTitle</td><td>字符串，用作分发标题；允许空字符串，空时不展示。</td></tr>
+    <tr><td>latest.downloadUrl</td><td>绝对 HTTP/HTTPS URL，必须有 host 且无 userInfo；拒绝 intent、file、content、javascript 及相对地址。HTTP 下载符合服务端约定，可交由外部浏览器处理；发布方优先提供 HTTPS。</td></tr>
+    <tr><td>latest.packageSize</td><td>可缺失或为 null；非负 Long 十进制字符串时展示；格式错误视为无效响应，不能影响版本比较精度。</td></tr>
+    <tr><td>新增字段</td><td>允许未知字段；不依赖分发 ID、包 ID、发布时间排序。</td></tr>
+  </table></div>
+  <p>使用 Ktor Client（OkHttp 引擎）执行挂起请求，配置 HttpTimeout：连接与 socket 超时各 10 秒，请求超时 25 秒；整个响应读取另受 25 秒协程超时约束，超时或取消时取消请求并释放响应资源。响应体最多 64 KiB，通过流式读取限量后再交给 kotlinx.serialization，不信任 Content-Length，不先无界 bodyAsText()。禁止接口自动重定向和缓存，非 200 均不得进入成功判断；Ktor 不安装自动重试插件，同时关闭 OkHttp 引擎的连接失败自动重试。</p>
+  <p>多项响应保持服务端原始顺序，不排序、不求最大值、不扫描匹配项。第一项维度或字段无效时，整次检查报响应异常，不回退第二项；后续项即使版本更高也不参与比较。完整响应仍必须是合法 JSON 且满足 64 KiB 上限。HTTP 409 仍按错误处理，不属于成功响应的多项选择。</p>
+
+  <h2 id="rules">5. 版本、架构和发布规则</h2>
+  <h3>5.1 数值比较</h3>
+  <p>通过 PackageManager 读取安装包的 versionName 和 longVersionCode。只有远端 versionCode &gt; 本机 longVersionCode 才认为有更新；相等为最新版，低于本机不提供降级。不能比较 versionName、字符串字典序或发布时间。</p>
+  <h3>5.2 仅支持 64 位的构建与架构解析</h3>
+  <p>从本次功能版本起，在 app 的 defaultConfig.ndk 中配置 ABI 白名单，对 Debug、Release、APK 和 AAB 一致生效：</p>
+  <pre><code>ndk {
+    abiFilters += listOf("arm64-v8a", "x86_64")
+}</code></pre>
+  <p>排除依赖 AAR 中的 armeabi-v7a、x86 及其他非白名单 JNI 库；保留依赖的 Java/Kotlin 代码和两种 64 位库。不删除必要的整个依赖、不手工修改 Gradle 缓存，也不只在更新请求层过滤。构建产物必须实际不含 32 位库；32 位系统与仅提供 32 位应用 ABI 的设备此后不再支持安装和更新。</p>
+  <p>按安装包实际原生库目录识别 ABI，并用进程位数交叉检查。不能直接把设备支持的首个 64 位 ABI 当作当前安装 ABI，也不能在查询失败后尝试另一架构或省略 arch。</p>
+  <div class="table"><table>
+    <tr><th>本机安装识别</th><th>查询</th><th>行为</th></tr>
+    <tr><td>64 位进程，nativeLibraryDir 尾段为 arm64</td><td>ARM64</td><td>允许检查。</td></tr>
+    <tr><td>64 位进程，nativeLibraryDir 尾段为 x86_64</td><td>X86_64</td><td>允许检查。</td></tr>
+    <tr><td>异常的 32 位运行环境，或未知目录</td><td>不请求</td><td>“当前安装架构暂不支持检查更新”。不误映射 ARM64。</td></tr>
+  </table></div>
+  <p>目录识别需在 64 位真机与模拟器确认；若无可识别目录则明确不支持，不增加猜测性 fallback。32 位旧版不再获得新包；无需扩展服务端 ARM32/X86 枚举，不要求卸载旧版或迁移数据来规避架构限制。支持 64 位的设备上，旧版到新版的覆盖升级与数据保留纳入验收。</p>
+  <h3>5.3 发布方约束</h3>
+  <ul>
+    <li>拟定软件内部名 <code>so-novel-reader</code>，展示名沿用应用名称。内部名是新约定，不能根据 applicationId 自动推断服务端已经存在。</li>
+    <li>发布包指定 <code>os=Android</code>、<code>packageType=apk</code>，声明真实包含的 ARM64 / X86_64 目标；同一个通用 APK 可同时登记两种架构。</li>
+    <li>上传正式签名 APK，不将 AAB、Debug APK 或未分类历史包作为 apk 更新目标；使用本项目已有 ntutn.top 签名身份，保持 applicationId 和签名证书一致。</li>
+    <li>版本码取 APK 实际值并递增。当前为 1，验证真正升级需发布更高版本的实际 APK；不能只把服务端 versionCode 伪填为 2。</li>
+    <li>同一架构 / 类型序列不得存在最高版本冲突。签名兼容和最低系统版本由发布方保证，当前接口无法让客户端提前验证。</li>
+  </ul>
+
+  <h2 id="errors">6. 异常语义与文案</h2>
+  <div class="table"><table>
+    <tr><th>结果</th><th>用户提示</th><th>含义</th></tr>
+    <tr><td>404 SOFTWARE_NOT_FOUND</td><td>更新服务尚未配置此应用。</td><td>当前线上已实际观察到；不是“已是最新版”。</td></tr>
+    <tr><td>404 NO_MATCHING_PACKAGE</td><td>暂无适用于当前安装的更新包。</td><td>软件存在，但本序列暂无包。</td></tr>
+    <tr><td>409 AMBIGUOUS_LATEST</td><td>更新包配置冲突，请稍后重试。</td><td>不挑选任意候选。</td></tr>
+    <tr><td>400 / 其他 4xx</td><td>更新检查失败，请稍后重试。</td><td>保留状态码便于本地诊断，不直接展示服务端原始错误。</td></tr>
+    <tr><td>429 / 5xx</td><td>更新服务暂时不可用，请稍后重试。</td><td>不自动重试；429 若有有效 Retry-After，在该时间内禁用重试，忽略无效值。</td></tr>
+    <tr><td>断网、DNS、TLS、超时</td><td>无法连接更新服务，请检查网络后重试。</td><td>保留当前安装版本。</td></tr>
+    <tr><td>3xx、HTML、非法 JSON、字段不符、超限响应</td><td>更新服务返回异常，请稍后重试。</td><td>不当作成功或无更新，不打开链接。</td></tr>
+    <tr><td>协程取消 / 页面所属 ViewModel 销毁</td><td>不提示错误。</td><td>释放请求资源，不把取消吞掉后写入错误状态。</td></tr>
+  </table></div>
+  <p>重新检查时清除旧结果的下载入口，检查失败后不得继续展示旧结果为本次成功结果。已有浏览器下载不受后续检查影响。</p>
+
+  <h2 id="implementation">7. 实现建议与文件职责</h2>
+  <p>Ktor 依赖通过版本目录统一管理：运行时使用 ktor-client-core、ktor-client-okhttp；测试使用 ktor-client-mock，均采用同一 Ktor 版本。实现时选择与项目 Kotlin/协程兼容的稳定版本并验证构建。JSON 在限量读取后解析为 JsonElement，仅对选中的第一项转换业务模型，避免后续项的业务结构影响结果。</p>
+  <p>HttpClient 在 AppContainer 中创建并复用，checker 只借用，不按点击重复创建或关闭全局客户端；测试注入 MockEngine 并由测试负责关闭。关闭客户端/引擎两层重定向与自动重试，不安装 HttpCache；错误响应允许读取有界 JSON 后统一映射状态。</p>
+  <div class="table"><table>
+    <tr><th>拟定位置</th><th>职责</th></tr>
+    <tr><td>app/build.gradle.kts、gradle/libs.versions.toml</td><td>Ktor Client 运行及测试依赖、统一版本；defaultConfig.ndk.abiFilters 只保留 arm64-v8a、x86_64。</td></tr>
+    <tr><td>data/update/UpdateChecker.kt</td><td>通过注入的 Ktor HttpClient 发请求，固定端点、限量读取、解析首项及版本判定；纯解析与网络传输可独立测试。</td></tr>
+    <tr><td>data/update/InstalledAppInfo.kt</td><td>PackageManager 版本、实际安装架构、Debug 标记，隔离 Android 依赖。</td></tr>
+    <tr><td>ui/UpdateViewModel.kt</td><td>检查状态、去重请求、错误映射、一次性详情事件；与 TTS/阅读设置状态分离。</td></tr>
+    <tr><td>ui/UpdateSettingsSection.kt</td><td>版本区块与详情对话框，回调打开浏览器；不在 Composable 内执行网络。</td></tr>
+    <tr><td>SettingsScreen.kt、SoNovelReaderApp.kt、AppContainer / Factory</td><td>插入区块、注入 checker 及本机信息，沿用现有 ViewModel 与生命周期收集方式。</td></tr>
+    <tr><td>AndroidManifest.xml、strings.xml</td><td>INTERNET 权限、集中管理新增文案；不新增安装权限。</td></tr>
+    <tr><td>app/src/test 与必要 androidTest</td><td>协议/网络边界、状态转换及设置页交互验证。</td></tr>
+  </table></div>
+  <p>每个文本文件遵守 500 行限制；实现完成运行文件行数检查及相应测试。仓库文档无需保存访问令牌、签名密码或私钥；更新查询不依赖 Keyring，Keyring 只参与正式包构建签名。</p>
+
+  <h2 id="acceptance">8. 验收与验证计划</h2>
+  <ol>
+    <li><strong>协议单测：</strong>远端版本高于、等于、低于本机；9 与 10 的数值比较；Long 边界及溢出；非法 versionCode、空白版本名、非法 URL、错误查询维度、空数组；多项时只取第一项，首项无效不回退，后续项结构异常或版本更高均不影响首项结果；未知扩展字段、packageSize 缺失和 null。</li>
+    <li><strong>架构及产物：</strong>ARM64、X86_64 正确映射，异常 32 位环境及未知目录不请求。检查 Debug/Release APK 的 lib/ 和 AAB 的 base/lib/，仅含 arm64-v8a、x86_64，预期原生库在两种 ABI 下齐全，不能存在 armeabi-v7a 或 x86。至少在 ARM64 真机和 X86_64 模拟器验证启动及基本阅读；支持 64 位的设备验证从旧版覆盖升级后数据保留。</li>
+    <li><strong>网络测试：</strong>Ktor MockEngine 验证请求参数、状态码与响应解析；本地假服务配合真实 OkHttp 引擎验证超时、取消、重定向、无自动重试及流式大小上限。覆盖 200、404 两种错误码、409、429、503、重定向、HTML、断开、超时和超过 64 KiB；不依赖线上写入伪数据。</li>
+    <li><strong>状态及 UI：</strong>连续点击只发一次；Checking 可见；取消不报错；旋转不重复请求/弹窗；离开设置不弹窗；错误可重试；失败清除旧下载入口。</li>
+    <li><strong>下载：</strong>只在确认后打开返回的链接；取消保持应用；无浏览器给出提示；Debug 禁用正式更新流程。</li>
+    <li><strong>本机构建：</strong>运行相关 JVM 测试、Debug 编译、<code>--no-configuration-cache :app:verifyReleaseSigning :app:assembleRelease</code>，校验正式 APK 签名和版本；运行 <code>python3 scripts/check_file_lines.py</code>。</li>
+    <li><strong>线上只读联调：</strong>当前验证 SOFTWARE_NOT_FOUND 的真实路径；发布方备妥实际新 APK 后再验成功响应、下载链接和架构匹配。未完成前，验收记录必须写明成功升级链路尚未验证。</li>
+    <li><strong>端到端升级：</strong>在有旧版与阅读数据的设备上，从新入口下载并由用户确认安装，验证签名兼容、版本增长、书库/进度保留；仅在有实际新版本包且获准设备安装时执行。</li>
+  </ol>
+  <p class="note">实现及本机验证已完成。第 8.1 节为首次实现的验证快照；额外授权后的真实测试发布见第 8.2 节。正式软件 so-novel-reader 仍未发布，未部署或修改服务端代码。</p>
+
+  <h3>8.1 本次实现验证记录（2026-10-31）</h3>
+  <ul>
+    <li>Ktor Client 3.6.1 / OkHttp 引擎；66 项 JVM 测试通过，包含响应首项规则、版本和大小边界、架构识别、ViewModel 状态、MockEngine 协议及真实 HTTP 测试。</li>
+    <li>真实引擎测试发现关闭连接重试后，503 + Retry-After: 0 仍会触发 OkHttp 内部重试。已在网络拦截器移除 503 的此重试提示；503 与 408 均验证只请求一次。429 的 Retry-After 保留并由客户端控制手动重试间隔。</li>
+    <li>连接的 ARM64 NX888J / Android 16 上，3 项更新区块交互测试及 1 项既有阅读主题选择回归测试通过。测试通过注入正式安装信息和假服务结果覆盖新版弹窗与错误提示，未伪称运行了线上成功升级。</li>
+    <li>Debug APK、签名 Release APK/AAB 构建及 Release Lint Vital 通过；逐个检查压缩包，仅含 arm64-v8a、x86_64，各有 libandroidx.graphics.path.so、libdatastore_shared_counter.so，无 32 位原生库。</li>
+    <li>Release APK 通过 apksigner 校验，AAB 通过 jarsigner 校验；证书均与 ntutn.top 一致。AAB 校验工具仍给出自签名、无时间戳及 ZIP 读取布局提示。</li>
+    <li>源码行数检查与 git diff --check 通过。未修改数据库 schema。</li>
+    <li>最终再次只读查询线上 ARM64/apk 序列，仍为 HTTP 404 / SOFTWARE_NOT_FOUND；未验证真实新包下载、无浏览器环境或实际覆盖升级。当前无可用 X86_64 AVD，X86_64 已做 ABI 映射测试与产物检查，尚无模拟器启动验证。</li>
+  </ul>
+
+  <h3>8.2 获授权后的专用测试发布（2026-10-31）</h3>
+  <p>用户明确允许发布专用测试包。构建新增显式开关 <code>-PupdateTestPackage=true</code> 与必填正整数 <code>-PupdateTestVersionCode</code>：仅此开关启用时使用独立应用 ID、名称和更新软件名，默认构建继续使用正式配置。</p>
+  <div class="table"><table>
+    <tr><th>项目</th><th>实际值</th></tr>
+    <tr><td>测试应用</td><td>拾光阅读·更新测试 / top.ntutn.sonovelreader.updatetest</td></tr>
+    <tr><td>独立软件序列</td><td>so-novel-reader-update-test / Android / ARM64 或 X86_64 / apk</td></tr>
+    <tr><td>本地旧版 → 已发布新版</td><td>1.0-update-test.1（1） → 1.0-update-test.2（2）</td></tr>
+    <tr><td>线上记录</td><td>分发 4，软件包 6，标题“更新专用测试 · 1 → 2 · 2026-10-31（非正式版）”</td></tr>
+    <tr><td>真实 APK</td><td>55,226,129 字节，使用 ntutn.top 签名，仅含 ARM64、X86_64 库。</td></tr>
+    <tr><td>SHA-256</td><td><code>b7d03e5427e5f419d3f714751691c070db3a6e4350fdc5f09db2b63c84c219ad</code></td></tr>
+    <tr><td>公开下载</td><td><a href="https://shared-files.ntutn.top/20261031/assets/73c94376-f6bd-486f-8672-daa533ff130a/so-novel-reader-update-test-v2.apk">更新测试版 2 APK</a></td></tr>
+    <tr><td>更新接口</td><td><a href="https://zp.ntutn.top/api/v1/updates?software=so-novel-reader-update-test&amp;os=Android&amp;arch=ARM64&amp;packageType=apk">ARM64</a> / <a href="https://zp.ntutn.top/api/v1/updates?software=so-novel-reader-update-test&amp;os=Android&amp;arch=X86_64&amp;packageType=apk">X86_64</a></td></tr>
+  </table></div>
+  <p>通过正式 HTTPS 域名完成 PoW 登录、CSRF 校验、R2 预签名 PUT、上传完成校验和分发保存；未直接写数据库。两个架构查询均返回版本 2，元数据与实际文件一致。桌面公开下载返回 HTTP 200，大小及 SHA-256 与上传文件一致；证书验证通过。</p>
+  <p>ARM64 真机已安装独立测试版 1，并通过应用内“检查更新”真实访问线上接口，正确显示版本 2、测试分发标题及下载大小。“前往下载”成功唤起 Fennec，经过浏览器自身的首次通知引导后，确认下载并完成 55.23 MB 文件下载。手机实际下载文件 SHA-256 同样为上述值。通过 Fennec 打开下载文件并在系统安装器确认“更新”，安装器报告版本 1.0-update-test.2、安装来源 Fennec；PackageManager 确认 versionCode=2。
+  </p>
+  <p>升级前已导入生成的“测试小说”样例，滚动到第一章第 12 段并保存书签。覆盖升级后，样例书仍在书架，正文恢复到第 12 段，书签“第一章 初见 · 27%”保留。新版再次查询线上接口显示“当前已是最新版本”，没有重复提供下载入口。
+  </p>
+  <p>浏览器此前未获未知来源安装权限；仅为这次系统安装临时启用，验证完成已从系统设置关闭，并以 appops 只读核对 REQUEST_INSTALL_PACKAGES=deny。没有卸载旧测试版、清空数据或覆盖正式应用。已保留独立测试应用、样例数据及明确标注的线上测试分发，便于复查。</p>
+  <p>默认构建已恢复为正式应用 ID、版本 1.0（1）和正式更新序列，66 项 JVM 测试再次通过。专用测试包不会占用正式软件的更新序列。X86_64 尚无运行环境，仅验证查询元数据和产物 ABI。</p>
+
+  <h2 id="review">9. 已确认的决策</h2>
+  <ul>
+    <li>已按用户评审明确：网络接入 Ktor Client；过滤 32 位原生依赖并停止支持；成功响应有多项时选择第一项。</li>
+    <li>首期采用“设置页手动检查 + 浏览器下载”，自动检查和应用内安装留到后续。</li>
+    <li>软件内部名拟定为 <code>so-novel-reader</code>；若需要其他名字，应在实现与服务端注册前统一。</li>
+    <li>后续所有构建仅支持 ARM64、X86_64，过滤 32 位原生依赖；正式版提供更新，Debug 禁用更新，不借用另一架构或独立 Debug 软件名。</li>
+    <li>本轮实施客户端能力；注册软件和发布实际新 APK 是成功线上联调的独立前置工作。</li>
+  </ul>
+
+  <h2>10. 调研来源</h2>
+  <p>以下源码路径相对于各自项目根目录；线上状态只代表核查时间点。</p>
+  <ul>
+    <li>so-novel-reader：<code>app/build.gradle.kts</code>、<code>app/src/main/AndroidManifest.xml</code>、<code>SoNovelReaderApplication.kt</code>、<code>ui/SettingsScreen.kt</code>、<code>ui/SettingsViewModel.kt</code>、<code>ui/SoNovelReaderApp.kt</code>。</li>
+    <li>updater-server（<code>/home/zero/Project/updater-server</code>）：<a href="../../../updater-server/docs/update-api.html">docs/update-api.html</a>；<code>src/main/kotlin/top/ntutn/update/routing/UpdateRoutes.kt</code>、<code>service/UpdateQuery.kt</code>、<code>repository/UpdateRepository.kt</code>、<code>model/PlatformTarget.kt</code>。</li>
+    <li>fcitx5-android：<code>app/src/main/java/org/fcitx/fcitx5/android/data/update/UpdateChecker.kt</code>、<code>ui/main/AboutFragment.kt</code>，仅作为已有同服务接入的参考。</li>
+    <li>技术资料：<a href="https://ktor.io/docs/client-engines.html">Ktor Client 引擎</a>、<a href="https://ktor.io/docs/client-testing.html">Ktor MockEngine 测试</a>、<a href="https://developer.android.com/ndk/guides/abis">Android ABI 与 abiFilters</a>。</li>
+    <li>线上：<a href="https://zp.ntutn.top/api/v1/updates?software=so-novel-reader&amp;os=Android&amp;arch=ARM64&amp;packageType=apk">本软件 ARM64 APK 精确查询</a>、<a href="https://zp.ntutn.top/binary">公开下载页</a>。</li>
+  </ul>
+</main></body>
+</html>

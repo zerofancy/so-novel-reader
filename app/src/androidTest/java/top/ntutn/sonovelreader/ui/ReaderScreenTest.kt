@@ -48,6 +48,9 @@ class ReaderScreenTest {
             MaterialTheme {
                 SettingsScreen(
                     settings = settings.value,
+                    updateViewModel = UpdateViewModel(
+                        top.ntutn.sonovelreader.data.update.InstalledAppInfo("1.0", 1, "ARM64", true),
+                    ) { error("Debug update checks are disabled") },
                     showAiOperationEntry = false,
                     aiAllowOperation = false,
                     onOpenAiOperationSettings = {},

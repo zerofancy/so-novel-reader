@@ -44,6 +44,15 @@ fun signingPassword(name: String): String {
         )
 }
 
+// Dedicated, opt-in installation/update sequence for live verification.
+val updateTestPackage = providers.gradleProperty("updateTestPackage").orNull?.let {
+    it.toBooleanStrictOrNull() ?: throw GradleException("updateTestPackage must be true or false.")
+} ?: false
+val updateTestVersion = if (updateTestPackage) {
+    providers.gradleProperty("updateTestVersionCode").orNull?.toIntOrNull()?.takeIf { it > 0 }
+        ?: throw GradleException("Set a positive -PupdateTestVersionCode for the dedicated test package.")
+} else 1
+
 android {
     namespace = "top.ntutn.sonovelreader"
     compileSdk {
@@ -51,11 +60,14 @@ android {
     }
 
     defaultConfig {
-        applicationId = "top.ntutn.sonovelreader"
+        applicationId = if (updateTestPackage) "top.ntutn.sonovelreader.updatetest" else "top.ntutn.sonovelreader"
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = updateTestVersion
+        versionName = if (updateTestPackage) "1.0-update-test.$updateTestVersion" else "1.0"
+        buildConfigField("String", "UPDATE_SOFTWARE", "\"${if (updateTestPackage) "so-novel-reader-update-test" else "so-novel-reader"}\"")
+        manifestPlaceholders["appLabel"] = if (updateTestPackage) "拾光阅读·更新测试" else "@string/app_name"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -89,6 +101,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
@@ -128,6 +141,10 @@ room {
 }
 
 dependencies {
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.kotlinx.coroutines.test)
     implementation(project(":ptqflipper"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

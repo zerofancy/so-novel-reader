@@ -68,6 +68,7 @@ fun SoNovelReaderApp(
     val snackbarHostState = remember { SnackbarHostState() }
     val appScope = rememberCoroutineScope()
     val libraryViewModel: LibraryViewModel = viewModel(factory = AppViewModelFactory(container))
+    val updateViewModel: UpdateViewModel = viewModel(factory = AppViewModelFactory(container))
     val settingsViewModel: SettingsViewModel = viewModel(factory = AppViewModelFactory(container))
     val libraryState by libraryViewModel.state.collectAsStateWithLifecycle()
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
@@ -299,6 +300,7 @@ fun SoNovelReaderApp(
             composable<SettingsRoute> {
                 LaunchedEffect(Unit) { settingsViewModel.loadTtsVoices() }
                 SettingsScreen(
+                    updateViewModel = updateViewModel,
                     settings = settings,
                     onModeChange = settingsViewModel::setMode,
                     onFontSizeChange = settingsViewModel::setFontSize,

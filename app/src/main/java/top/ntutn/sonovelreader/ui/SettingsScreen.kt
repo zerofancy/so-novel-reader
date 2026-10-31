@@ -62,6 +62,7 @@ import top.ntutn.sonovelreader.tts.TtsVoiceCatalogState
 @Composable
 fun SettingsScreen(
     settings: ReaderSettings,
+    updateViewModel: UpdateViewModel,
     onModeChange: (ReadingMode) -> Unit,
     onFontSizeChange: (Int) -> Unit,
     onLineHeightChange: (Float) -> Unit,
@@ -88,6 +89,8 @@ fun SettingsScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            UpdateSettingsSection(updateViewModel)
+            HorizontalDivider()
             if (showAiOperationEntry) {
                 Row(
                     Modifier
