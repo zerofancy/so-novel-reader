@@ -10,10 +10,9 @@ import androidx.compose.ui.test.performClick
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Rule
+import top.ntutn.updater.*
 import org.junit.Test
-import top.ntutn.sonovelreader.data.update.AvailableUpdate
 import top.ntutn.sonovelreader.data.update.InstalledAppInfo
-import top.ntutn.sonovelreader.data.update.UpdateServiceError
 import java.util.concurrent.atomic.AtomicInteger
 
 class UpdateSettingsTest {
@@ -22,7 +21,7 @@ class UpdateSettingsTest {
 
     @Test fun manualCheckShowsDetailsAndKeepsResultAfterDismissal() {
         val calls = AtomicInteger()
-        val pending = CompletableDeferred<AvailableUpdate>()
+        val pending = CompletableDeferred<UpdateCheckResult>()
         val vm = UpdateViewModel(installed) { calls.incrementAndGet(); pending.await() }
         composeRule.setContent { MaterialTheme { UpdateSettingsSection(vm) } }
         composeRule.onNodeWithText("当前版本 1.0（1）").assertExists()
@@ -31,7 +30,7 @@ class UpdateSettingsTest {
         composeRule.waitUntil { calls.get() == 1 }
         composeRule.onAllNodesWithText("正在检查更新…").assertCountEquals(2)
         composeRule.runOnIdle {
-            pending.complete(AvailableUpdate(2, "1.1", "测试发布", "https://example.com/app.apk", 1024))
+            pending.complete(UpdateCheckResult.Available(testRelease()))
         }
         composeRule.onNodeWithText("新版本 1.1（2）").assertExists()
         composeRule.onNodeWithText("前往下载").assertExists()
@@ -42,7 +41,7 @@ class UpdateSettingsTest {
     }
 
     @Test fun missingSoftwareIsNotReportedAsLatest() {
-        val vm = UpdateViewModel(installed) { throw UpdateServiceError(404, "SOFTWARE_NOT_FOUND") }
+        val vm = UpdateViewModel(installed) { UpdateCheckResult.Failed(UpdateError(UpdateErrorKind.ServiceConfiguration, 404, "SOFTWARE_NOT_FOUND")) }
         composeRule.setContent { MaterialTheme { UpdateSettingsSection(vm) } }
         composeRule.onNodeWithText("检查更新").performClick()
         composeRule.onNodeWithText("更新服务尚未配置此应用。").assertExists()
@@ -57,3 +56,9 @@ class UpdateSettingsTest {
         composeRule.onNodeWithText("检查更新").assertIsNotEnabled()
     }
 }
+
+private fun testRelease() = UpdateRelease(
+    "so-novel-reader", UpdateTarget(UpdateOs.Android, UpdateArch.ARM64), "apk",
+    UpdateVersion(2, "1.1"), "https://example.com/app.apk", "拾光阅读", "测试发布", "apk",
+    null, null, null, 1024, "更新说明", null,
+)

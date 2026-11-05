@@ -29,7 +29,17 @@
 
 ## 构建与运行
 
-克隆项目后，使用 Android Studio 打开项目并等待 Gradle 同步完成，然后运行 `app` 配置。
+更新检测使用 `io.github.zerofancy:kmp-updater:0.1.0-SNAPSHOT` 核心库，沿用本项目的设置页界面。
+该版本尚未发布到 Maven Central，首次同步前需从相邻的 `kmp-updater` 仓库发布到本地 Maven：
+
+```bash
+cd ../kmp-updater
+./gradlew :updater:publishToMavenLocal
+cd ../so-novel-reader
+```
+
+修改更新库后也需重新发布。本项目仅对该库及其平台变体启用本地 Maven。
+然后使用 Android Studio 打开项目并等待 Gradle 同步完成，运行 `app` 配置。
 
 也可以在项目根目录使用 Gradle Wrapper：
 
@@ -68,6 +78,17 @@ Release 签名支持通过系统钥匙圈管理密码，配置和初始化步骤
 应用名显示“拾光阅读·更新测试”。只有提供 `updateTestPackage=true` 才启用，且必须指定正整数版本码。
 默认构建继续使用正式包名、`so-novel-reader` 更新序列和原版本号。测试包与正式版均只支持 ARM64/X86_64。
 
+真机更新回归（需已连接设备）：
+
+```bash
+./gradlew -PkeyringSigning=false \
+  -Pandroid.testInstrumentationRunnerArguments.class=top.ntutn.sonovelreader.ui.UpdateSettingsTest,top.ntutn.sonovelreader.ui.LiveUpdateSettingsTest \
+  -Pandroid.testInstrumentationRunnerArguments.liveUpdates=true :app:connectedDebugAndroidTest
+```
+
+线上测试默认跳过，仅上述开关显式启用；读取既有独立测试序列的版本 2，并验证外部浏览器跳转。
+设备可能要求确认本次浏览器跳转。测试不发布版本、不自动安装浏览器下载的 APK。
+
 ## 技术栈
 
 - Kotlin 与 Jetpack Compose
@@ -77,7 +98,7 @@ Release 签名支持通过系统钥匙圈管理密码，配置和初始化步骤
 - epub4j
 - Jsoup
 - Coil
-- Ktor Client（OkHttp 引擎）
+- KMP Updater 核心库与 Ktor Client（OkHttp 引擎）
 
 ## 数据与隐私
 

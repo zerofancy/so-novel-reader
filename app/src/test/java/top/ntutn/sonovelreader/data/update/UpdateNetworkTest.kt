@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
+import top.ntutn.updater.*
 import java.net.InetSocketAddress
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,60 +21,57 @@ class UpdateNetworkTest {
 
     @Test fun realEngineReadsJsonWithoutRedirectsOrRetries() = withServer { server, base ->
         val calls = AtomicInteger()
-        server.createContext("/ok") { exchange ->
-            val bytes = updateBody().toByteArray()
+        val status = AtomicInteger(200)
+        server.createContext("/api/v1/updates") { exchange ->
+            calls.incrementAndGet()
             exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseHeaders.add("Location", "$base/unexpected")
+            exchange.responseHeaders.add("Retry-After", "0")
+            val bytes = updateBody().toByteArray()
+            exchange.sendResponseHeaders(status.get(), bytes.size.toLong())
             exchange.responseBody.use { it.write(bytes) }
-        }
-        server.createContext("/redirect") { exchange ->
-            exchange.responseHeaders.add("Location", "$base/ok")
-            exchange.sendResponseHeaders(302, -1); exchange.close()
-        }
-        server.createContext("/busy") { exchange ->
-            calls.incrementAndGet()
-            exchange.responseHeaders.add("Retry-After", "0")
-            exchange.sendResponseHeaders(503, -1); exchange.close()
-        }
-        server.createContext("/timeout") { exchange ->
-            calls.incrementAndGet()
-            exchange.responseHeaders.add("Retry-After", "0")
-            exchange.sendResponseHeaders(408, -1); exchange.close()
         }
         createUpdateHttpClient().use { client ->
             runBlocking {
-                assertEquals(2L, UpdateChecker(client, "$base/ok").check("ARM64").versionCode)
-                for ((path, status) in listOf("redirect" to 302, "busy" to 503, "timeout" to 408)) {
-                    try { UpdateChecker(client, "$base/$path").check("ARM64"); fail("Expected $status") }
-                    catch (e: UpdateServiceError) { assertEquals(status, e.status) }
+                val checker = UpdateChecker(client, UpdateVersion(1, "1.0"), base, allowInsecureHttp = true)
+                assertTrue(checker.check("ARM64") is UpdateCheckResult.Available)
+                for (value in listOf(302, 503, 408)) {
+                    status.set(value)
+                    val result = checker.check("ARM64") as UpdateCheckResult.Failed
+                    assertEquals(value, result.error.httpStatus)
                 }
-                assertEquals("503 and 408 must each make one request", 2, calls.get())
+                assertEquals("Each check must make one request", 4, calls.get())
             }
         }
     }
 
     @Test fun rejectsChunkedOversizeAndCancelsStalledBody() = withServer { server, base ->
-        server.createContext("/large") { exchange ->
-            exchange.sendResponseHeaders(200, 0)
-            runCatching { exchange.responseBody.use { it.write(ByteArray(MAX_UPDATE_BYTES + 4096) { 32 }) } }
-        }
-        server.createContext("/slow") { exchange ->
+        val slow = AtomicInteger()
+        server.createContext("/api/v1/updates") { exchange ->
+            exchange.responseHeaders.add("Content-Type", "application/json")
             exchange.sendResponseHeaders(200, 0)
             runCatching {
                 exchange.responseBody.use {
-                    it.write('{'.code); it.flush()
-                    Thread.sleep(2000)
-                    it.write('}'.code)
+                    if (slow.get() == 0) it.write(ByteArray(256 * 1024 + 4096) { 32 })
+                    else {
+                        it.write('{'.code); it.flush()
+                        Thread.sleep(2000)
+                        it.write('}'.code)
+                    }
                 }
             }
         }
         createUpdateHttpClient().use { client ->
             runBlocking {
-                try { UpdateChecker(client, "$base/large").check("ARM64"); fail("Expected size limit") }
-                catch (_: InvalidUpdateResponse) { /* expected */ }
-                try { UpdateChecker(client, "$base/slow", 150).check("ARM64"); fail("Expected timeout") }
-                catch (_: TimeoutCancellationException) { /* whole response, not just headers */ }
-                val pending = async { UpdateChecker(client, "$base/slow").check("ARM64") }
+                fun checker(timeout: Long = 25_000) = UpdateChecker(
+                    client, UpdateVersion(1, "1.0"), base, timeout, allowInsecureHttp = true,
+                )
+                assertEquals(UpdateErrorKind.InvalidResponse,
+                    (checker().check("ARM64") as UpdateCheckResult.Failed).error.kind)
+                slow.set(1)
+                assertEquals(UpdateErrorKind.Timeout,
+                    (checker(150).check("ARM64") as UpdateCheckResult.Failed).error.kind)
+                val pending = async { checker().check("ARM64") }
                 delay(100)
                 pending.cancelAndJoin()
                 assertTrue(pending.isCancelled)

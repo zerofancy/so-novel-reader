@@ -1,8 +1,5 @@
 package top.ntutn.sonovelreader.ui
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +18,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import top.ntutn.updater.createAndroidBrowserOpener
+import top.ntutn.updater.BrowserOpenResult
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,8 @@ import top.ntutn.sonovelreader.R
 @Composable
 fun UpdateSettingsSection(viewModel: UpdateViewModel) {
     val context = LocalContext.current
+    val browser = remember(context) { createAndroidBrowserOpener(context) }
+    val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val state by viewModel.state.collectAsStateWithLifecycle()
     DisposableEffect(lifecycle, viewModel) {
@@ -53,7 +57,7 @@ fun UpdateSettingsSection(viewModel: UpdateViewModel) {
         Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.update_installed, viewModel.installed.versionName, viewModel.installed.versionCode))
         Text(state.available?.let {
-            stringResource(R.string.update_available_version, it.versionName, it.versionCode)
+            stringResource(R.string.update_available_version, it.version.name, it.version.code)
         } ?: stringResource(state.message), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -80,23 +84,20 @@ fun UpdateSettingsSection(viewModel: UpdateViewModel) {
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.update_installed, viewModel.installed.versionName, viewModel.installed.versionCode))
-                    Text(stringResource(R.string.update_new_version, latest.versionName, latest.versionCode))
+                    Text(stringResource(R.string.update_new_version, latest.version.name, latest.version.code))
                     if (latest.distributionTitle.isNotBlank()) Text(latest.distributionTitle)
                     latest.packageSize?.let { Text(stringResource(R.string.update_size, Formatter.formatFileSize(context, it))) }
+                    latest.description?.let { Text(it) }
                     Text(stringResource(R.string.update_external_download))
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(latest.downloadUrl)).apply {
-                            addCategory(Intent.CATEGORY_BROWSABLE)
-                        })
-                        viewModel.dismissDetails()
-                    } catch (_: ActivityNotFoundException) {
-                        Toast.makeText(context, R.string.update_no_browser, Toast.LENGTH_LONG).show()
-                    } catch (_: SecurityException) {
-                        Toast.makeText(context, R.string.update_no_browser, Toast.LENGTH_LONG).show()
+                    scope.launch {
+                        when (browser.open(latest.downloadUrl)) {
+                            BrowserOpenResult.Dispatched -> viewModel.dismissDetails()
+                            is BrowserOpenResult.Failed -> Toast.makeText(context, R.string.update_no_browser, Toast.LENGTH_LONG).show()
+                        }
                     }
                 }) { Text(stringResource(R.string.update_download)) }
             },

@@ -19,6 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        exclusiveContent {
+            forRepository { mavenLocal() }
+            filter { includeModuleByRegex("io.github.zerofancy", "kmp-updater(-.*)?") }
+        }
         maven { url = uri("https://jitpack.io") }
     }
 }

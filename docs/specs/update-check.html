@@ -29,7 +29,9 @@
   <span class="badge">已实现 · 验证边界见第 8 节</span>
   <h1>拾光阅读 · 检查更新</h1>
   <p class="meta">2026-10-31 · 客户端基线 3306d7e · 服务端本地基线 d86f815 · 线上只读核查 15:08（Asia/Shanghai）</p>
-  <p class="note">已在设置页实现手动检查更新：通过 Ktor Client 查询 zp.ntutn.top，发现更高版本后由用户选择浏览器下载 APK。构建仅保留 ARM64、X86_64；多项响应选择第一项。正式软件序列和正式版本号保持不变；用户随后授权在独立软件序列发布专用测试包，记录见第 8.2 节。</p>
+  <p class="note">2026-11-06：更新检测已迁移至 KMP Updater 0.1.0-SNAPSHOT 核心库，沿用设置页界面、安装 ABI 识别与 Debug 禁用策略。新增展示发布说明，并使用 SDK 的 Android 浏览器适配器。</p>
+  <p>当前协议由 SDK 负责：要求 application/json、query 维度匹配且 items 恰有一项；响应上限为 256 KiB；生产服务与下载地址仅允许 HTTPS。总超时为 25 秒；404 / NO_MATCHING_PACKAGE 独立提示，429 根据 SDK 的 retryAt 等待重试。每次查询结束关闭 SDK checker，保留 AppContainer 持有的共享 HttpClient。依赖需从相邻 kmp-updater 仓库执行 publishToMavenLocal，步骤见 README。</p>
+  <p class="meta">以下第 1–8 节保留首次实现及 2026-10-31 验证的历史记录；其中首项选择、64 KiB 与允许 HTTP 下载等约定已由上述 SDK 规则替代。历史实机结果不代表此次迁移后的实机验证。</p>
   <nav><a href="#research">调研结论</a><a href="#scope">范围</a><a href="#ux">交互</a><a href="#api">接口</a><a href="#rules">版本与架构</a><a href="#errors">异常</a><a href="#implementation">实现建议</a><a href="#acceptance">验收</a><a href="#review">评审决策</a></nav>
 
   <h2 id="research">1. 调研结论与证据</h2>
@@ -203,6 +205,19 @@ Accept: application/json</code></pre>
   </p>
   <p>浏览器此前未获未知来源安装权限；仅为这次系统安装临时启用，验证完成已从系统设置关闭，并以 appops 只读核对 REQUEST_INSTALL_PACKAGES=deny。没有卸载旧测试版、清空数据或覆盖正式应用。已保留独立测试应用、样例数据及明确标注的线上测试分发，便于复查。</p>
   <p>默认构建已恢复为正式应用 ID、版本 1.0（1）和正式更新序列，66 项 JVM 测试再次通过。专用测试包不会占用正式软件的更新序列。X86_64 尚无运行环境，仅验证查询元数据和产物 ABI。</p>
+
+  <h3>8.3 KMP Updater 接入真机验证（2026-11-06）</h3>
+  <ul>
+    <li>设备：NX888J，Android 16，ARM64。3 项更新设置交互测试与 2 项显式启用的线上测试全部通过。</li>
+    <li>线上测试只读访问既有 so-novel-reader-update-test 序列：配置本地版本 1 时显示真实版本 2 的更新弹窗，关闭后可重新查看；本地版本 2 / 3 均返回 UpToDate，latest.code=2；zip 类型返回 NoMatchingPackage。旧版本场景由测试注入版本 1，没有降级设备应用。</li>
+    <li>点击“前往下载”后，通过系统“仅本次允许”确认唤起 Fennec；前台 Activity 为 org.mozilla.fenix.HomeActivity，地址栏为接口返回的 APK 链接。本次仅验证浏览器跳转，未验证下载完成或通过浏览器安装。</li>
+    <li>通过钥匙圈签名校验及 Release 构建（含 Lint Vital），以 updateTestPackage=true、updateTestVersionCode=2 生成独立签名测试包，用 adb install -r 覆盖原测试应用，保留数据。覆盖后书架仍有“测试小说”；实际设置页点击检查后显示“当前已是最新版本”。没有修改线上发布记录。</li>
+  </ul>
+  <pre><code>./gradlew -PkeyringSigning=false \
+  -Pandroid.testInstrumentationRunnerArguments.class=top.ntutn.sonovelreader.ui.UpdateSettingsTest,top.ntutn.sonovelreader.ui.LiveUpdateSettingsTest \
+  -Pandroid.testInstrumentationRunnerArguments.liveUpdates=true :app:connectedDebugAndroidTest
+./gradlew --no-configuration-cache -PupdateTestPackage=true -PupdateTestVersionCode=2 \
+  :app:verifyReleaseSigning :app:assembleRelease</code></pre>
 
   <h2 id="review">9. 已确认的决策</h2>
   <ul>

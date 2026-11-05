@@ -29,7 +29,9 @@ class AppContainer(application: Application) {
     ).build()
 
     private val updateHttpClient by lazy { top.ntutn.sonovelreader.data.update.createUpdateHttpClient() }
-    val updateChecker by lazy { top.ntutn.sonovelreader.data.update.UpdateChecker(updateHttpClient) }
+    val updateChecker by lazy { top.ntutn.sonovelreader.data.update.UpdateChecker(
+        updateHttpClient, top.ntutn.updater.UpdateVersion(installedAppInfo.versionCode, installedAppInfo.versionName),
+    ) }
     val installedAppInfo by lazy { top.ntutn.sonovelreader.data.update.InstalledAppInfo.read(application) }
 
     val bookRepository = BookRepository(application, database.libraryDao())

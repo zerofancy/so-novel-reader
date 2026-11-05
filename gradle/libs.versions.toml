@@ -24,6 +24,7 @@ gradleKeyring = "0.2"
 ktor = "3.6.1"
 
 [libraries]
+kmp-updater = { module = "io.github.zerofancy:kmp-updater", version = "0.1.0-SNAPSHOT" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }

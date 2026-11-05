@@ -6,6 +6,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Before
+import top.ntutn.updater.*
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import org.junit.Test
 import org.junit.Assert.*
 import top.ntutn.sonovelreader.R
@@ -15,13 +18,13 @@ import top.ntutn.sonovelreader.data.update.*
 class UpdateViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val installed = InstalledAppInfo("1.0", 1, "ARM64", false)
-    private val latest = AvailableUpdate(2, "1.1", "发布", "https://example.com/app.apk", null)
+    private val latest = UpdateCheckResult.Available(testRelease())
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
     @After fun tearDown() = Dispatchers.resetMain()
 
     @Test fun repeatedClicksMakeOneCallAndShowDetailsOnlyOnce() = runTest(dispatcher) {
         var calls = 0
-        val pending = CompletableDeferred<AvailableUpdate>()
+        val pending = CompletableDeferred<UpdateCheckResult>()
         val vm = UpdateViewModel(installed) { calls++; pending.await() }
         vm.setVisible(true)
         vm.checkUpdates(); vm.checkUpdates(); runCurrent()
@@ -30,23 +33,23 @@ class UpdateViewModelTest {
         assertTrue(vm.state.value.showDetails)
         vm.dismissDetails(); vm.setVisible(false); vm.setVisible(true)
         assertFalse(vm.state.value.showDetails)
-        assertEquals(latest, vm.state.value.available)
+        assertEquals(latest.release, vm.state.value.available)
         vm.showDetails(); assertTrue(vm.state.value.showDetails)
     }
 
     @Test fun backgroundCompletionKeepsResultWithoutOpeningDialogOnReturn() = runTest(dispatcher) {
-        val pending = CompletableDeferred<AvailableUpdate>()
+        val pending = CompletableDeferred<UpdateCheckResult>()
         val vm = UpdateViewModel(installed) { pending.await() }
         vm.setVisible(true); vm.checkUpdates(); runCurrent(); vm.setVisible(false)
         pending.complete(latest); runCurrent(); vm.setVisible(true)
         assertFalse(vm.state.value.showDetails)
-        assertEquals(latest, vm.state.value.available)
+        assertEquals(latest.release, vm.state.value.available)
     }
 
     @Test fun newCheckClearsOldDownloadAndFailureDoesNotClaimCurrent() = runTest(dispatcher) {
         var calls = 0
         val vm = UpdateViewModel(installed) {
-            if (++calls == 1) latest else throw UpdateServiceError(404, "SOFTWARE_NOT_FOUND")
+            if (++calls == 1) latest else UpdateCheckResult.Failed(UpdateError(UpdateErrorKind.ServiceConfiguration, 404, "SOFTWARE_NOT_FOUND"))
         }
         vm.checkUpdates(); runCurrent(); assertNotNull(vm.state.value.available)
         vm.checkUpdates(); assertNull(vm.state.value.available); runCurrent()
@@ -55,8 +58,8 @@ class UpdateViewModelTest {
     }
 
     @Test fun equalAndLowerVersionsHaveNoDownload() = runTest(dispatcher) {
-        for ((version, message) in listOf(1L to R.string.update_current, 0L to R.string.update_ahead)) {
-            val vm = UpdateViewModel(installed) { latest.copy(versionCode = version) }
+        for ((version, message) in listOf(2L to R.string.update_current, 1L to R.string.update_ahead)) {
+            val vm = UpdateViewModel(installed.copy(versionCode = 2)) { UpdateCheckResult.UpToDate(UpdateVersion(version, "1.0")) }
             vm.checkUpdates(); runCurrent()
             assertEquals(message, vm.state.value.message); assertNull(vm.state.value.available)
         }
@@ -71,9 +74,15 @@ class UpdateViewModelTest {
 
     @Test fun rateLimitBlocksNewChecksUntilRetryAfter() = runTest(dispatcher) {
         var calls = 0
-        val vm = UpdateViewModel(installed) { calls++; throw UpdateServiceError(429, null, 3000) }
+        val vm = UpdateViewModel(installed) { calls++; UpdateCheckResult.Failed(UpdateError(UpdateErrorKind.ServiceUnavailable, 429, retryAt = Clock.System.now() + 3.seconds)) }
         vm.checkUpdates(); runCurrent(); assertTrue(vm.state.value.retryBlocked)
         vm.checkUpdates(); assertEquals(1, calls)
-        advanceTimeBy(3000); runCurrent(); assertFalse(vm.state.value.retryBlocked)
+        advanceTimeBy(3001); runCurrent(); assertFalse(vm.state.value.retryBlocked)
     }
 }
+
+private fun testRelease() = UpdateRelease(
+    "so-novel-reader", UpdateTarget(UpdateOs.Android, UpdateArch.ARM64), "apk",
+    UpdateVersion(2, "1.1"), "https://example.com/app.apk", "拾光阅读", "测试发布", "apk",
+    null, null, null, 1024, "更新说明", null,
+)

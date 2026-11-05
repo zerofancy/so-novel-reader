@@ -2,9 +2,7 @@ package top.ntutn.sonovelreader.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -13,23 +11,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import top.ntutn.sonovelreader.R
-import top.ntutn.sonovelreader.data.update.AvailableUpdate
 import top.ntutn.sonovelreader.data.update.InstalledAppInfo
-import top.ntutn.sonovelreader.data.update.InvalidUpdateResponse
-import top.ntutn.sonovelreader.data.update.UpdateServiceError
-import java.io.IOException
+import top.ntutn.updater.*
+import kotlin.time.Clock
 
 internal data class UpdateUiState(
     val checking: Boolean = false,
     val message: Int = R.string.update_idle,
-    val available: AvailableUpdate? = null,
+    val available: UpdateRelease? = null,
     val showDetails: Boolean = false,
     val retryBlocked: Boolean = false,
 )
 
 class UpdateViewModel(
     val installed: InstalledAppInfo,
-    private val check: suspend (String) -> AvailableUpdate,
+    private val check: suspend (String) -> UpdateCheckResult,
 ) : ViewModel() {
     private var visible = false
     private val mutableState = MutableStateFlow(UpdateUiState(message = when {
@@ -53,37 +49,38 @@ class UpdateViewModel(
         mutableState.value = UpdateUiState(checking = true, message = R.string.update_checking)
         viewModelScope.launch {
             try {
-                val latest = check(requireNotNull(installed.arch))
-                mutableState.value = when {
-                    latest.isNewerThan(installed.versionCode) -> UpdateUiState(
-                        message = R.string.update_available, available = latest, showDetails = visible,
+                when (val result = check(requireNotNull(installed.arch))) {
+                    is UpdateCheckResult.Available -> mutableState.value = UpdateUiState(
+                        message = R.string.update_available, available = result.release, showDetails = visible,
                     )
-                    latest.versionCode == installed.versionCode -> UpdateUiState(message = R.string.update_current)
-                    else -> UpdateUiState(message = R.string.update_ahead)
+                    is UpdateCheckResult.UpToDate -> mutableState.value = UpdateUiState(message =
+                        if (result.latest.code == installed.versionCode) R.string.update_current else R.string.update_ahead)
+                    UpdateCheckResult.NoMatchingPackage -> mutableState.value = UpdateUiState(message = R.string.update_no_package)
+                    is UpdateCheckResult.Failed -> showError(result.error)
                 }
             } catch (e: Exception) {
-                if (e is CancellationException && e !is TimeoutCancellationException) throw e
+                if (e is CancellationException) throw e
                 currentCoroutineContext().ensureActive()
-                val message = when (e) {
-                    is UpdateServiceError -> when {
-                        e.status == 404 && e.code == "SOFTWARE_NOT_FOUND" -> R.string.update_not_configured
-                        e.status == 404 && e.code == "NO_MATCHING_PACKAGE" -> R.string.update_no_package
-                        e.status == 409 && e.code == "AMBIGUOUS_LATEST" -> R.string.update_conflict
-                        e.status == 429 || e.status >= 500 -> R.string.update_service_unavailable
-                        e.status in 300..399 -> R.string.update_invalid_response
-                        else -> R.string.update_failed
-                    }
-                    is InvalidUpdateResponse -> R.string.update_invalid_response
-                    is IOException, is HttpRequestTimeoutException, is TimeoutCancellationException -> R.string.update_network_error
-                    else -> R.string.update_failed
-                }
-                val retryDelay = (e as? UpdateServiceError)?.retryAfterMillis?.takeIf { it > 0 }
-                mutableState.value = UpdateUiState(message = message, retryBlocked = retryDelay != null)
-                if (retryDelay != null) {
-                    delay(retryDelay)
-                    mutableState.update { it.copy(retryBlocked = false) }
-                }
+                mutableState.value = UpdateUiState(message = R.string.update_failed)
             }
+        }
+    }
+
+    private suspend fun showError(error: UpdateError) {
+        val message = when {
+            error.httpStatus == 404 && error.serviceCode == "SOFTWARE_NOT_FOUND" -> R.string.update_not_configured
+            error.kind == UpdateErrorKind.AmbiguousLatest -> R.string.update_conflict
+            error.httpStatus == 429 || (error.httpStatus ?: 0) >= 500 -> R.string.update_service_unavailable
+            error.kind in setOf(UpdateErrorKind.InvalidResponse, UpdateErrorKind.UnsafeDownloadUrl) ||
+                error.httpStatus in 300..399 -> R.string.update_invalid_response
+            error.kind in setOf(UpdateErrorKind.Network, UpdateErrorKind.Timeout) -> R.string.update_network_error
+            else -> R.string.update_failed
+        }
+        val retryDelay = error.retryAt?.let { (it - Clock.System.now()).inWholeMilliseconds }?.takeIf { it > 0 }
+        mutableState.value = UpdateUiState(message = message, retryBlocked = retryDelay != null)
+        if (retryDelay != null) {
+            delay(retryDelay)
+            mutableState.update { it.copy(retryBlocked = false) }
         }
     }
 }
