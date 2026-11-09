@@ -64,6 +64,7 @@ internal fun PTQBookPageViewInner(
             }
         }
     }.then(engine.inputModifier())) {
-        engine.Draw(ratio)
+        // The first idle composition can run before SideEffect installs the engine callbacks.
+        engine.Draw(ratio, callbacks)
     }
 }

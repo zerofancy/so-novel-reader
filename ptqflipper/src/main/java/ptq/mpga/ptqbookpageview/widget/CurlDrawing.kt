@@ -22,10 +22,10 @@ import kotlin.math.absoluteValue
 
 
 @Composable
-internal fun CurlEngine.Draw(animFloatRatio: Float) {
+internal fun CurlEngine.Draw(animFloatRatio: Float, pageCallbacks: PTQBookPageViewScopeImpl) {
     Box(Modifier.fillMaxSize()) {
         if (state == State.Idle) {
-            callbacks.contents(this, controller.currentPage) {}
+            pageCallbacks.contents(this, controller.currentPage) {}
         } else {
             //如果正在动画，则使用动画的animDragEvent，否则使用拖动的
             val dragEvent = when (state) {
