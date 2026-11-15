@@ -1,0 +1,17 @@
+[
+  {
+    "id": "io.documentnode:minilog:1.0",
+    "name": "io.documentnode:minilog",
+    "version": "1.0",
+    "authors": "Jake Wang",
+    "copyright": "上游 1.0 的 LICENSE 与源文件未附独立版权行；作者 Jake Wang / Document Node，未推测版权年份。",
+    "license": "The Apache License, Version 2.0; Apache-2.0",
+    "projectUrl": "https://github.com/documentnode/minilog",
+    "licenseUrl": "https://raw.githubusercontent.com/documentnode/minilog/1.0/LICENSE",
+    "texts": [
+      "credits/texts/io.documentnode_minilog_1.0-00.txt",
+      "credits/texts/io.documentnode_minilog_1.0-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/io/documentnode/minilog/1.0/"
+  }
+]

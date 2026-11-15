@@ -1,0 +1,17 @@
+[
+  {
+    "id": "com.google.guava:listenablefuture:1.0",
+    "name": "com.google.guava:listenablefuture",
+    "version": "1.0",
+    "authors": "Kevin Bourrillion",
+    "copyright": "Copyright (C) 2007 The Guava Authors",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://github.com/google/guava",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/com.google.guava_listenablefuture_1.0-00.txt",
+      "credits/texts/com.google.guava_listenablefuture_1.0-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/com/google/guava/listenablefuture/1.0/"
+  }
+]

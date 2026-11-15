@@ -63,6 +63,7 @@ internal fun readerPalette(theme: ReaderTheme, darkSystem: Boolean): ReaderPalet
 @Composable
 internal fun readerTextStyle(settings: ReaderSettings, color: Color, applyIndent: Boolean = true): TextStyle = TextStyle(
     color = color,
+    fontFamily = LocalReaderFont.current,
     fontSize = settings.fontSizeSp.sp,
     lineHeight = (settings.fontSizeSp * settings.lineHeight).sp,
     textIndent = if (applyIndent && settings.firstLineIndent) TextIndent(firstLine = (settings.fontSizeSp * 2).sp) else null,

@@ -21,7 +21,7 @@ class SoNovelReaderApplication : Application() {
     }
 }
 
-class AppContainer(application: Application) {
+class AppContainer(application: Application) : AutoCloseable {
     private val database = Room.databaseBuilder(
         application,
         LibraryDatabase::class.java,
@@ -38,6 +38,19 @@ class AppContainer(application: Application) {
     val bookmarkRepository = BookmarkRepository(database.bookmarkDao())
     val progressRepository = ProgressRepository(database.libraryDao())
     val settingsRepository = SettingsRepository(application)
+    private val applicationScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate,
+    )
+    val fontRepository = top.ntutn.sonovelreader.data.fonts.FontRepository(application)
+    val readerFontManager by lazy { top.ntutn.sonovelreader.data.ReaderFontManager(
+        fontRepository, settingsRepository, applicationScope,
+    ) }
+
+    /** For owners of short-lived containers (e.g. device tests); the app container is process scoped. */
+    override fun close() {
+        applicationScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+        database.close()
+    }
     val saepPolicyManager = SaepPolicyManager(application)
     val ttsPlaybackManager = TtsPlaybackManager(application)
     val ttsVoiceCatalog = SystemTtsVoiceCatalog(application)

@@ -209,8 +209,7 @@ private fun FlipPageContent(
         if (entry.title != null) {
             Text(
                 text = entry.title,
-                fontSize = (settings.fontSizeSp * 1.3f).sp,
-                fontWeight = FontWeight.Bold,
+                style = readerChapterTitleStyle(settings, palette.foreground),
                 color = palette.foreground,
             )
         }

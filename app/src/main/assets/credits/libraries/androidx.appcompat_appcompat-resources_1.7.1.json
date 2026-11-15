@@ -1,0 +1,22 @@
+[
+  {
+    "id": "androidx.appcompat:appcompat-resources:1.7.1",
+    "name": "androidx.appcompat:appcompat-resources",
+    "version": "1.7.1",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright (C) 2014 The Android Open Source Project\nCopyright (C) 2015 The Android Open Source Project\nCopyright (C) 2018 The Android Open Source Project\nCopyright (C) 2019 The Android Open Source Project\nCopyright 2016 The Android Open Source Project\nCopyright 2021 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/appcompat#1.7.1",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-00.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-01.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-02.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-03.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-04.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-05.txt",
+      "credits/texts/androidx.appcompat_appcompat-resources_1.7.1-06.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/appcompat/appcompat-resources/1.7.1/"
+  }
+]

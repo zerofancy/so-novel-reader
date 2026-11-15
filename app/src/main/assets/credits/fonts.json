@@ -1,0 +1,38 @@
+[
+  {
+    "id": "builtin:zhuque",
+    "name": "朱雀仿宋",
+    "version": "v0.212 (official technical preview, Regular)",
+    "authors": "璇玑造字 / TrionesType; Zhejiang JadeFoci Technology Co. LTD",
+    "copyright": "Copyright (c) 2023, Zhejiang JadeFoci Techonology Co. LTD (https://www.jadefoci.com/)",
+    "license": "SIL Open Font License 1.1",
+    "projectUrl": "https://github.com/TrionesType/zhuque",
+    "licenseUrl": "https://github.com/TrionesType/zhuque/blob/v0.212/LICENSE.txt",
+    "sourceUrl": "https://github.com/TrionesType/zhuque/releases/download/v0.212/ZhuqueFangsong-v0.212.zip",
+    "texts": ["fonts/licenses/zhuque.txt"]
+  },
+  {
+    "id": "builtin:chill-duan-hei-song",
+    "name": "寒蝉端黑宋",
+    "version": "v1.200 (Regular)",
+    "authors": "寒蝉 / Warren2060",
+    "copyright": "©ChillDuanHeiSong 2023",
+    "license": "SIL Open Font License 1.1",
+    "projectUrl": "https://github.com/Warren2060/ChillDuanHeiSong",
+    "licenseUrl": "https://github.com/Warren2060/ChillDuanHeiSong/blob/v1.200/LICENSE",
+    "sourceUrl": "https://github.com/Warren2060/ChillDuanHeiSong/releases/download/v1.200/ChillDuanHeiSong_v1.2.zip",
+    "texts": ["fonts/licenses/chill-duan-hei-song.txt"]
+  },
+  {
+    "id": "builtin:lxgw-wenkai",
+    "name": "霞鹜文楷",
+    "version": "v1.530 (original non-Mono Regular)",
+    "authors": "LXGW / 落霞孤鹜; upstream Fontworks Klee One contributors",
+    "copyright": "Copyright 2021-2026 LXGW (https://github.com/lxgw/LxgwWenKai); Copyright 2020 The Klee Project Authors (https://github.com/fontworks-fonts/Klee)",
+    "license": "SIL Open Font License 1.1",
+    "projectUrl": "https://github.com/lxgw/LxgwWenKai",
+    "licenseUrl": "https://github.com/lxgw/LxgwWenKai/blob/v1.530/OFL.txt",
+    "sourceUrl": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Regular.ttf",
+    "texts": ["fonts/licenses/lxgw-wenkai.txt"]
+  }
+]

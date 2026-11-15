@@ -1,0 +1,21 @@
+[
+  {
+    "id": "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:0.9.1",
+    "name": "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm",
+    "version": "0.9.1",
+    "authors": "JetBrains Team",
+    "copyright": "Copyright (C) 2018 Square, Inc.\nCopyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.",
+    "license": "Apache-2.0",
+    "projectUrl": "https://github.com/Kotlin/kotlinx-io",
+    "licenseUrl": "https://raw.githubusercontent.com/Kotlin/kotlinx-io/0.9.1/LICENSE",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-00.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-01.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-02.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-03.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-04.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-bytestring-jvm_0.9.1-05.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-io-bytestring-jvm/0.9.1/"
+  }
+]

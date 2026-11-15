@@ -1,0 +1,4 @@
+--- kotlinx-serialization-core-jvm-1.13.0-sources.jar!/commonMain/kotlinx/serialization/internal/PrimitiveArraysSerializers.kt (original source declaration) ---
+/*
+ * Copyright 2017-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ */

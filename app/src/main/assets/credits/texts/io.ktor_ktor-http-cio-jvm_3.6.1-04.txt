@@ -1,0 +1,4 @@
+--- ktor-http-cio-jvm-3.6.1-sources.jar!/jvmMain/io/ktor/http/cio/internals/CharArrayPoolJvm.kt (original source declaration) ---
+/*
+ * Copyright 2014-2022 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.
+ */

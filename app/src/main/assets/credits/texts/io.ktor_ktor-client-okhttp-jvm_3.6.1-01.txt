@@ -1,0 +1,4 @@
+--- ktor-client-okhttp-jvm-3.6.1-sources.jar!/jvmMain/io/ktor/client/engine/okhttp/OkHttpEngine.kt (original source declaration) ---
+/*
+* Copyright 2014-2021 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.
+*/

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "io.github.zerofancy:kmp-updater-android:0.1.0-SNAPSHOT",
+    "name": "io.github.zerofancy:kmp-updater-android",
+    "version": "0.1.0-SNAPSHOT",
+    "authors": "zerofancy",
+    "copyright": "Copyright (c) 2026 zerofancy",
+    "license": "MIT License; MIT",
+    "projectUrl": "https://github.com/zerofancy/kmp-updater",
+    "licenseUrl": "https://raw.githubusercontent.com/zerofancy/kmp-updater/e70e60affae97158115cc822bbacd07f95eb5420/LICENSE",
+    "texts": [
+      "credits/texts/io.github.zerofancy_kmp-updater-android_0.1.0-SNAPSHOT-00.txt"
+    ],
+    "sourceUrl": "https://github.com/zerofancy/kmp-updater"
+  }
+]

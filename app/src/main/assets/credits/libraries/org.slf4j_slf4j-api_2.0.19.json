@@ -1,0 +1,22 @@
+[
+  {
+    "id": "org.slf4j:slf4j-api:2.0.19",
+    "name": "org.slf4j:slf4j-api",
+    "version": "2.0.19",
+    "authors": "QOS.ch; Ceki Gulcu",
+    "copyright": "Copyright (c) 2004-2011 QOS.ch\nCopyright (c) 2004-2019 QOS.ch\nCopyright (c) 2004-2021 QOS.ch\nCopyright (c) 2004-2022 QOS.ch\nCopyright (c) 2004-2023 QOS.ch\nCopyright (c) 2004-2024 QOS.ch",
+    "license": "MIT",
+    "projectUrl": "http://www.slf4j.org",
+    "licenseUrl": "https://opensource.org/license/mit",
+    "texts": [
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-00.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-01.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-02.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-03.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-04.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-05.txt",
+      "credits/texts/org.slf4j_slf4j-api_2.0.19-06.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/2.0.19/"
+  }
+]

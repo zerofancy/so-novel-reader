@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "totalFontBytes": 47674716,
+  "weight": 400,
+  "style": "normal",
+  "modifications": "None. Official static Regular binaries distributed unchanged.",
+  "fonts": [
+    {
+      "id": "builtin:zhuque",
+      "name": "朱雀仿宋",
+      "version": "v0.212",
+      "releaseStatus": "official technical preview",
+      "projectUrl": "https://github.com/TrionesType/zhuque",
+      "sourceUrl": "https://github.com/TrionesType/zhuque/releases/download/v0.212/ZhuqueFangsong-v0.212.zip",
+      "archiveEntry": "ZhuqueFangsong-Regular.ttf",
+      "assetPath": "fonts/ZhuqueFangsong-Regular.ttf",
+      "bytes": 8824084,
+      "sha256": "558c62730844fe54ba220146ed62f859d4e2880188d92d985f8921c6e3743bc4",
+      "copyright": "Copyright (c) 2023, Zhejiang JadeFoci Techonology Co. LTD (https://www.jadefoci.com/)",
+      "license": "SIL OFL 1.1",
+      "licenseSourceUrl": "https://raw.githubusercontent.com/TrionesType/zhuque/v0.212/LICENSE.txt",
+      "licenseAssetPath": "fonts/licenses/zhuque.txt",
+      "licenseBytes": 4389,
+      "licenseSha256": "66cc01ad4df62fca6936431a426104cb32a52ce8da49de9a7d643e02d7659043"
+    },
+    {
+      "id": "builtin:chill-duan-hei-song",
+      "name": "寒蝉端黑宋",
+      "version": "v1.200",
+      "projectUrl": "https://github.com/Warren2060/ChillDuanHeiSong",
+      "sourceUrl": "https://github.com/Warren2060/ChillDuanHeiSong/releases/download/v1.200/ChillDuanHeiSong_v1.2.zip",
+      "archiveEntry": "ChillDuanHeiSong_v1.2/ChillDuanHeiSongRegular.otf",
+      "assetPath": "fonts/ChillDuanHeiSongRegular.otf",
+      "bytes": 12921692,
+      "sha256": "48dd423be190731ae4b39fe0b2d3edcf44efcfafa9d92546d8116b30dae3c854",
+      "copyright": "©ChillDuanHeiSong 2023",
+      "license": "SIL OFL 1.1",
+      "licenseSourceUrl": "https://raw.githubusercontent.com/Warren2060/ChillDuanHeiSong/v1.200/LICENSE",
+      "licenseAssetPath": "fonts/licenses/chill-duan-hei-song.txt",
+      "licenseBytes": 4326,
+      "licenseSha256": "c8b1f37d38b02e3813ce9b7bf60d0dc04646a30bcfe8de2a71ef81bab15e3068"
+    },
+    {
+      "id": "builtin:lxgw-wenkai",
+      "name": "霞鹜文楷",
+      "version": "v1.530",
+      "projectUrl": "https://github.com/lxgw/LxgwWenKai",
+      "sourceUrl": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Regular.ttf",
+      "assetPath": "fonts/LXGWWenKai-Regular.ttf",
+      "bytes": 25928940,
+      "sha256": "2d73eea94ad808999d90c0000c239a84a33b09d4bc6ab6c5b8bbf1eda8a7fc8b",
+      "copyright": "Copyright 2021-2026 LXGW; Copyright 2020 The Klee Project Authors. Reserved Font Names and additional permission are retained verbatim in the offline license.",
+      "license": "SIL OFL 1.1",
+      "licenseSourceUrl": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/v1.530/OFL.txt",
+      "licenseAssetPath": "fonts/licenses/lxgw-wenkai.txt",
+      "licenseBytes": 5171,
+      "licenseSha256": "1a25e35da1031c6c3436fde545bb9cb5aca954e9873afe510c834b8b79bd21a0"
+    }
+  ],
+  "measurementsDocument": "docs/reader-font-verification.md",
+  "measurementStatus": "Paired APK and device measurements are recorded outside the APK to avoid self-referential package-size metadata; raw font bytes are not an APK or installation measurement."
+}

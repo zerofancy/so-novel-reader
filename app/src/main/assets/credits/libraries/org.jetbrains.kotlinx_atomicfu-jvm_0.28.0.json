@@ -1,0 +1,19 @@
+[
+  {
+    "id": "org.jetbrains.kotlinx:atomicfu-jvm:0.28.0",
+    "name": "org.jetbrains.kotlinx:atomicfu-jvm",
+    "version": "0.28.0",
+    "authors": "JetBrains Team",
+    "copyright": "Copyright 2016-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2024 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.",
+    "license": "Apache-2.0",
+    "projectUrl": "https://github.com/Kotlin/kotlinx.atomicfu",
+    "licenseUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlinx_atomicfu-jvm_0.28.0-00.txt",
+      "credits/texts/org.jetbrains.kotlinx_atomicfu-jvm_0.28.0-01.txt",
+      "credits/texts/org.jetbrains.kotlinx_atomicfu-jvm_0.28.0-02.txt",
+      "credits/texts/org.jetbrains.kotlinx_atomicfu-jvm_0.28.0-03.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/atomicfu-jvm/0.28.0/"
+  }
+]

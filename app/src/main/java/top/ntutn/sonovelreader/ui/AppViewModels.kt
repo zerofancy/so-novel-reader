@@ -18,6 +18,9 @@ class AppViewModelFactory(
         modelClass.isAssignableFrom(UpdateViewModel::class.java) ->
             UpdateViewModel(container.installedAppInfo, container.updateChecker::check) as T
 
+        modelClass.isAssignableFrom(FontSettingsViewModel::class.java) ->
+            FontSettingsViewModel(container) as T
+
         modelClass.isAssignableFrom(SettingsViewModel::class.java) ->
             SettingsViewModel(container) as T
 

@@ -1,0 +1,5 @@
+--- kotlin-stdlib-2.4.21-sources.jar!/commonMain/kotlin/time/Instant.kt (original source declaration) ---
+/*
+ * Based on the ThreeTenBp project.
+ * Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
+ */

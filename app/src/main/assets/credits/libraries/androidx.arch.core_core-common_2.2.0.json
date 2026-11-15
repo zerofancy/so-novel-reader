@@ -1,0 +1,17 @@
+[
+  {
+    "id": "androidx.arch.core:core-common:2.2.0",
+    "name": "androidx.arch.core:core-common",
+    "version": "2.2.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright 2018 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/arch-core#2.2.0",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.arch.core_core-common_2.2.0-00.txt",
+      "credits/texts/androidx.arch.core_core-common_2.2.0-01.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/arch/core/core-common/2.2.0/"
+  }
+]

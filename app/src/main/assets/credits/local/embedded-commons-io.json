@@ -1,0 +1,20 @@
+[
+  {
+    "id": "embedded:epub4j:commons-io",
+    "name": "Apache Commons IO (relocated source subset in epub4j)",
+    "version": "SVN r1005099 / r1052095 / r1052161 / r934041 / r1004112; epub4j 4.2.3 adaptation",
+    "authors": "The Apache Software Foundation",
+    "copyright": "Copyright 2002-2010 The Apache Software Foundation",
+    "license": "Apache-2.0",
+    "projectUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "licenseUrl": "https://raw.githubusercontent.com/apache/commons-io/commons-io-2.0.1/NOTICE.txt",
+    "sourceUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "texts": [
+      "credits/texts/embedded_commons-io-00.txt",
+      "credits/texts/embedded_commons-io-01.txt",
+      "credits/texts/embedded_commons-io-02.txt",
+      "credits/texts/embedded_commons-io-03.txt",
+      "credits/texts/embedded_commons-io-04.txt"
+    ]
+  }
+]

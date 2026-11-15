@@ -1,0 +1,24 @@
+[
+  {
+    "id": "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.13.0",
+    "name": "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm",
+    "version": "1.13.0",
+    "authors": "JetBrains Team",
+    "copyright": "Copyright 2017-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2021 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2022 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2023 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2024 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2017-2026 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.",
+    "license": "Apache-2.0",
+    "projectUrl": "https://github.com/Kotlin/kotlinx.serialization",
+    "licenseUrl": "https://raw.githubusercontent.com/Kotlin/kotlinx.serialization/v1.13.0/LICENSE.txt",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-00.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-01.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-02.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-03.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-04.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-05.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-06.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-07.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-serialization-json-jvm_1.13.0-08.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/1.13.0/"
+  }
+]

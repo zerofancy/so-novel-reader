@@ -1,0 +1,27 @@
+[
+  {
+    "id": "androidx.room:room-common-jvm:2.8.5",
+    "name": "androidx.room:room-common-jvm",
+    "version": "2.8.5",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright (C) 2016 The Android Open Source Project\nCopyright (C) 2017 The Android Open Source Project\nCopyright (C) 2022 The Android Open Source Project\nCopyright 2018 The Android Open Source Project\nCopyright 2019 The Android Open Source Project\nCopyright 2020 The Android Open Source Project\nCopyright 2021 The Android Open Source Project\nCopyright 2022 The Android Open Source Project\nCopyright 2023 The Android Open Source Project\nCopyright 2024 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/room#2.8.5",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-00.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-01.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-02.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-03.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-04.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-05.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-06.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-07.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-08.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-09.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-10.txt",
+      "credits/texts/androidx.room_room-common-jvm_2.8.5-11.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/room/room-common-jvm/2.8.5/"
+  }
+]

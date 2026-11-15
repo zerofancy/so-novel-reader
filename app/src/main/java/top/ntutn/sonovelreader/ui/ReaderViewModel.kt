@@ -32,6 +32,8 @@ data class ReaderUiState(
     val nextChapter: ReaderChapterContent? = null,
     val contentLoading: Boolean = false,
     val settings: ReaderSettings = ReaderSettings(),
+    val font: top.ntutn.sonovelreader.data.fonts.ResolvedReaderFont? = null,
+    val layoutGeneration: Int = 0,
     val error: String? = null,
     val ttsPlayback: TtsPlaybackState = TtsPlaybackState(),
 )
@@ -113,8 +115,12 @@ class ReaderViewModel(
 
     init {
         viewModelScope.launch {
-            container.settingsRepository.settings.collect { settings ->
-                mutableState.update { it.copy(settings = settings) }
+            container.readerFontManager.appearance.collect { appearance ->
+                if (appearance != null) mutableState.update {
+                    val changed = it.font?.cacheKey != appearance.font.cacheKey || it.settings != appearance.settings
+                    it.copy(settings = appearance.settings, font = appearance.font,
+                        layoutGeneration = it.layoutGeneration + if (changed) 1 else 0)
+                }
             }
         }
         viewModelScope.launch {
@@ -169,10 +175,12 @@ class ReaderViewModel(
         loadChapter(book, index, fraction, preservePage)
     }
 
-    fun updateReaderFraction(fraction: Float, chapterHref: String, bookmarkJumpToken: Int) {
+    fun updateReaderFraction(fraction: Float, chapterHref: String, bookmarkJumpToken: Int,
+        layoutGeneration: Int = mutableState.value.layoutGeneration) {
         val current = mutableState.value
         // Ignore callbacks from a page that was replaced by a completed jump.
-        if (current.locator?.chapterHref != chapterHref || current.bookmarkJumpToken != bookmarkJumpToken) return
+        if (current.locator?.chapterHref != chapterHref || current.bookmarkJumpToken != bookmarkJumpToken ||
+            current.layoutGeneration != layoutGeneration) return
         updateFraction(fraction)
     }
 

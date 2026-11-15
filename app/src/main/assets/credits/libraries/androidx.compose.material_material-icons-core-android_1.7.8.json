@@ -1,0 +1,18 @@
+[
+  {
+    "id": "androidx.compose.material:material-icons-core-android:1.7.8",
+    "name": "androidx.compose.material:material-icons-core-android",
+    "version": "1.7.8",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright 2020 The Android Open Source Project\nCopyright 2025 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/compose-material#1.7.8",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.compose.material_material-icons-core-android_1.7.8-00.txt",
+      "credits/texts/androidx.compose.material_material-icons-core-android_1.7.8-01.txt",
+      "credits/texts/androidx.compose.material_material-icons-core-android_1.7.8-02.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/compose/material/material-icons-core-android/1.7.8/"
+  }
+]

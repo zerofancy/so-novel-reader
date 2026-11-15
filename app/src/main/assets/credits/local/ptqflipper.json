@@ -1,0 +1,14 @@
+[
+  {
+    "id": "local:ptqflipper:1.1.0",
+    "name": "PTQFlipper（本地适配）",
+    "version": "1.1.0 + local adaptation",
+    "authors": "MPGA / FantasticPornTaiQiang",
+    "copyright": "Copyright (c) 2023 MPGA",
+    "license": "MIT",
+    "projectUrl": "https://github.com/FantasticPornTaiQiang/PTQFlipper",
+    "licenseUrl": "https://github.com/FantasticPornTaiQiang/PTQFlipper/blob/1.1.0/LICENSE",
+    "sourceUrl": "https://jitpack.io/com/github/FantasticPornTaiQiang/PTQFlipper/1.1.0/PTQFlipper-1.1.0-sources.jar",
+    "texts": ["licenses/PTQFlipper.txt"]
+  }
+]

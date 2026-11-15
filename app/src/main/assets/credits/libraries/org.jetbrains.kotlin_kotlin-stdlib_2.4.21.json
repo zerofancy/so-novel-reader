@@ -1,0 +1,32 @@
+[
+  {
+    "id": "org.jetbrains.kotlin:kotlin-stdlib:2.4.21",
+    "name": "org.jetbrains.kotlin:kotlin-stdlib",
+    "version": "2.4.21",
+    "authors": "Kotlin Team",
+    "copyright": "Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos\nCopyright 2007 Google Inc.\nCopyright 2010-2015 JetBrains s.r.o.\nCopyright 2010-2016 JetBrains s.r.o.\nCopyright 2010-2017 JetBrains s.r.o.\nCopyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license\nCopyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2011 The Guava Authors",
+    "license": "Apache-2.0",
+    "projectUrl": "https://kotlinlang.org/",
+    "licenseUrl": "https://raw.githubusercontent.com/JetBrains/kotlin/v2.4.21/license/LICENSE.txt",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-00.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-01.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-02.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-03.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-04.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-05.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-06.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-07.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-08.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-09.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-10.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-11.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-12.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-13.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-14.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-15.txt",
+      "credits/texts/org.jetbrains.kotlin_kotlin-stdlib_2.4.21-16.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.4.21/"
+  }
+]

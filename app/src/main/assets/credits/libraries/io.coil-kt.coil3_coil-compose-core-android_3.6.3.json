@@ -1,0 +1,17 @@
+[
+  {
+    "id": "io.coil-kt.coil3:coil-compose-core-android:3.6.3",
+    "name": "io.coil-kt.coil3:coil-compose-core-android",
+    "version": "3.6.3",
+    "authors": "Coil Contributors",
+    "copyright": "Copyright 2026 Coil Contributors",
+    "license": "The Apache License, Version 2.0; Apache-2.0",
+    "projectUrl": "https://github.com/coil-kt/coil",
+    "licenseUrl": "https://raw.githubusercontent.com/coil-kt/coil/3.6.3/LICENSE.txt",
+    "texts": [
+      "credits/texts/io.coil-kt.coil3_coil-compose-core-android_3.6.3-00.txt",
+      "credits/texts/io.coil-kt.coil3_coil-compose-core-android_3.6.3-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/io/coil-kt/coil3/coil-compose-core-android/3.6.3/"
+  }
+]

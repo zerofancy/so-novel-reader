@@ -1,0 +1,18 @@
+[
+  {
+    "id": "androidx.datastore:datastore-core-okio-jvm:1.3.0",
+    "name": "androidx.datastore:datastore-core-okio-jvm",
+    "version": "1.3.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright 2022 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.datastore_datastore-core-okio-jvm_1.3.0-00.txt",
+      "credits/texts/androidx.datastore_datastore-core-okio-jvm_1.3.0-01.txt",
+      "credits/texts/androidx.datastore_datastore-core-okio-jvm_1.3.0-02.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/datastore/datastore-core-okio-jvm/1.3.0/"
+  }
+]

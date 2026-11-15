@@ -1,0 +1,16 @@
+[
+  {
+    "id": "embedded:epub4j:stream-writer-delegate",
+    "name": "StreamWriterDelegate (embedded in epub4j)",
+    "version": "epub4j 4.2.3 bundled source snapshot",
+    "authors": "John Kristian",
+    "copyright": "Copyright (c) 2006, John Kristian",
+    "license": "BSD-3-Clause",
+    "projectUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "licenseUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "sourceUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "texts": [
+      "credits/texts/embedded_stream-writer-delegate-00.txt"
+    ]
+  }
+]

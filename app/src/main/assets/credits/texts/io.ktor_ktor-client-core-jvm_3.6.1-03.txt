@@ -1,0 +1,4 @@
+--- ktor-client-core-jvm-3.6.1-sources.jar!/commonMain/io/ktor/client/call/DelegatedCall.kt (original source declaration) ---
+/*
+ * Copyright 2014-2025 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.
+ */

@@ -1,0 +1,25 @@
+[
+  {
+    "id": "androidx.activity:activity:1.13.0",
+    "name": "androidx.activity:activity",
+    "version": "1.13.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright (C) 2020 The Android Open Source Project\nCopyright 2018 The Android Open Source Project\nCopyright 2019 The Android Open Source Project\nCopyright 2020 The Android Open Source Project\nCopyright 2021 The Android Open Source Project\nCopyright 2022 The Android Open Source Project\nCopyright 2023 The Android Open Source Project\nCopyright 2025 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.activity_activity_1.13.0-00.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-01.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-02.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-03.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-04.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-05.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-06.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-07.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-08.txt",
+      "credits/texts/androidx.activity_activity_1.13.0-09.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/activity/activity/1.13.0/"
+  }
+]

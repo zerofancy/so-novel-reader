@@ -11,6 +11,8 @@ plugins {
     alias(libs.plugins.room)
 }
 
+apply(from = rootProject.file("scripts/credits.gradle"))
+
 val localSigningProperties = Properties().apply {
     rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
@@ -51,7 +53,7 @@ val updateTestPackage = providers.gradleProperty("updateTestPackage").orNull?.le
 val updateTestVersion = if (updateTestPackage) {
     providers.gradleProperty("updateTestVersionCode").orNull?.toIntOrNull()?.takeIf { it > 0 }
         ?: throw GradleException("Set a positive -PupdateTestVersionCode for the dedicated test package.")
-} else 3
+} else 4
 
 android {
     namespace = "top.ntutn.sonovelreader"
@@ -65,7 +67,7 @@ android {
         minSdk = 29
         targetSdk = 37
         versionCode = updateTestVersion
-        versionName = if (updateTestPackage) "1.0-update-test.$updateTestVersion" else "1.0.2"
+        versionName = if (updateTestPackage) "1.0-update-test.$updateTestVersion" else "1.0.3"
         buildConfigField("String", "UPDATE_SOFTWARE", "\"${if (updateTestPackage) "so-novel-reader-update-test" else "so-novel-reader"}\"")
         manifestPlaceholders["appLabel"] = if (updateTestPackage) "拾光阅读·更新测试" else "@string/app_name"
 

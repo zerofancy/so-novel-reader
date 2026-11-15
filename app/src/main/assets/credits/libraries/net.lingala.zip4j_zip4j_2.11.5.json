@@ -1,0 +1,19 @@
+[
+  {
+    "id": "net.lingala.zip4j:zip4j:2.11.5",
+    "name": "net.lingala.zip4j:zip4j",
+    "version": "2.11.5",
+    "authors": "Srikanth Reddy Lingala",
+    "copyright": "Copyright 2010 Srikanth Reddy Lingala",
+    "license": "Apache License, Version 2.0; Apache-2.0",
+    "projectUrl": "https://github.com/srikanth-lingala/zip4j",
+    "licenseUrl": "https://raw.githubusercontent.com/srikanth-lingala/zip4j/v2.11.5/LICENSE",
+    "texts": [
+      "credits/texts/net.lingala.zip4j_zip4j_2.11.5-00.txt",
+      "credits/texts/net.lingala.zip4j_zip4j_2.11.5-01.txt",
+      "credits/texts/net.lingala.zip4j_zip4j_2.11.5-02.txt",
+      "credits/texts/net.lingala.zip4j_zip4j_2.11.5-03.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/net/lingala/zip4j/zip4j/2.11.5/"
+  }
+]

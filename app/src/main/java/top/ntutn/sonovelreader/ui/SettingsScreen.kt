@@ -78,6 +78,9 @@ fun SettingsScreen(
     aiAllowOperation: Boolean,
     onOpenAiOperationSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    fontName: String = "系统默认",
+    onOpenFonts: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var rate by remember(settings.ttsRate) { mutableFloatStateOf(settings.ttsRate) }
@@ -141,6 +144,9 @@ fun SettingsScreen(
                     label = { Text("仿真翻页") },
                 )
             }
+            HorizontalDivider()
+            SettingsNavigationRow("阅读字体", fontName, onOpenFonts)
+            SettingsNavigationRow("关于", "字体及第三方库 · 作者、LICENSE 与链接", onOpenAbout)
             HorizontalDivider()
             SettingTitle("字号  ${settings.fontSizeSp} sp")
             Slider(

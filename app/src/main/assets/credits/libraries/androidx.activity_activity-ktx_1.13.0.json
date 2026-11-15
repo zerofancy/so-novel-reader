@@ -1,0 +1,17 @@
+[
+  {
+    "id": "androidx.activity:activity-ktx:1.13.0",
+    "name": "androidx.activity:activity-ktx",
+    "version": "1.13.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "兼容 / 转发模块，不含独立 class 代码；上游未附独立版权行。",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.activity_activity-ktx_1.13.0-00.txt",
+      "credits/texts/androidx.activity_activity-ktx_1.13.0-01.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/activity/activity-ktx/1.13.0/"
+  }
+]

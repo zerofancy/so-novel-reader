@@ -1,0 +1,23 @@
+[
+  {
+    "id": "io.ktor:ktor-websockets-jvm:3.6.1",
+    "name": "io.ktor:ktor-websockets-jvm",
+    "version": "3.6.1",
+    "authors": "Jetbrains Team",
+    "copyright": "Copyright 2000-2023 JetBrains s.r.o.\nCopyright 2014-2019 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2014-2021 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2014-2022 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.\nCopyright 2014-2026 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.",
+    "license": "The Apache Software License, Version 2.0; Apache-2.0",
+    "projectUrl": "https://github.com/ktorio/ktor",
+    "licenseUrl": "https://raw.githubusercontent.com/ktorio/ktor/3.6.1/LICENSE",
+    "texts": [
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-00.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-01.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-02.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-03.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-04.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-05.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-06.txt",
+      "credits/texts/io.ktor_ktor-websockets-jvm_3.6.1-07.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/io/ktor/ktor-websockets-jvm/3.6.1/"
+  }
+]

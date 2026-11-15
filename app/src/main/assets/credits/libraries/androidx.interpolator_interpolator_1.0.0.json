@@ -1,0 +1,17 @@
+[
+  {
+    "id": "androidx.interpolator:interpolator:1.0.0",
+    "name": "androidx.interpolator:interpolator",
+    "version": "1.0.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright 2018 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "http://developer.android.com/tools/extras/support-library.html",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.interpolator_interpolator_1.0.0-00.txt",
+      "credits/texts/androidx.interpolator_interpolator_1.0.0-01.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/interpolator/interpolator/1.0.0/"
+  }
+]

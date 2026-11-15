@@ -1,0 +1,18 @@
+[
+  {
+    "id": "androidx.graphics:graphics-path:1.0.1",
+    "name": "androidx.graphics:graphics-path",
+    "version": "1.0.1",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright 2022 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/graphics#1.0.1",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.graphics_graphics-path_1.0.1-00.txt",
+      "credits/texts/androidx.graphics_graphics-path_1.0.1-01.txt",
+      "credits/texts/androidx.graphics_graphics-path_1.0.1-02.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/graphics/graphics-path/1.0.1/"
+  }
+]

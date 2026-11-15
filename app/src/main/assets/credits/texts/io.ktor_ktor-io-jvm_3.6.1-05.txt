@@ -1,0 +1,4 @@
+--- ktor-io-jvm-3.6.1-sources.jar!/commonMain/io/ktor/utils/io/pool/ByteArrayPool.kt (original source declaration) ---
+/*
+ * Copyright 2014-2021 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.
+ */

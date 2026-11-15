@@ -1,0 +1,17 @@
+[
+  {
+    "id": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.11.0",
+    "name": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
+    "version": "1.11.0",
+    "authors": "JetBrains Team",
+    "copyright": "Copyright 2000-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.",
+    "license": "Apache-2.0",
+    "projectUrl": "https://github.com/Kotlin/kotlinx.coroutines",
+    "licenseUrl": "https://raw.githubusercontent.com/Kotlin/kotlinx.coroutines/1.11.0/LICENSE.txt",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-coroutines-core-jvm_1.11.0-00.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-coroutines-core-jvm_1.11.0-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.11.0/"
+  }
+]

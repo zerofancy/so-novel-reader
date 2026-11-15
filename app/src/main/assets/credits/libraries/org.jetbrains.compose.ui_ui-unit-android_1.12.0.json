@@ -1,0 +1,17 @@
+[
+  {
+    "id": "org.jetbrains.compose.ui:ui-unit-android:1.12.0",
+    "name": "org.jetbrains.compose.ui:ui-unit-android",
+    "version": "1.12.0",
+    "authors": "Compose Multiplatform Team",
+    "copyright": "兼容 / 转发模块，不含独立 class 代码；上游未附独立版权行。",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://github.com/JetBrains/compose-multiplatform",
+    "licenseUrl": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/org.jetbrains.compose.ui_ui-unit-android_1.12.0-00.txt",
+      "credits/texts/org.jetbrains.compose.ui_ui-unit-android_1.12.0-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/compose/ui/ui-unit-android/1.12.0/"
+  }
+]

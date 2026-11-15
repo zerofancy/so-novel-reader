@@ -53,6 +53,12 @@ data class GroupShelfRoute(
 data object SettingsRoute
 
 @Serializable
+data object FontSettingsRoute
+
+@Serializable
+data object AboutRoute
+
+@Serializable
 data class ReaderRoute(val bookId: String)
 
 @Composable
@@ -72,6 +78,10 @@ fun SoNovelReaderApp(
     val settingsViewModel: SettingsViewModel = viewModel(factory = AppViewModelFactory(container))
     val libraryState by libraryViewModel.state.collectAsStateWithLifecycle()
     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+    val fontCatalog by container.fontRepository.catalog.collectAsStateWithLifecycle()
+    LaunchedEffect(container) {
+        container.readerFontManager.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
     val ttsVoices by settingsViewModel.ttsVoices.collectAsStateWithLifecycle()
     val aiSettings by settingsViewModel.aiSettings.collectAsStateWithLifecycle()
     val saepAvailable by settingsViewModel.saepAvailable.collectAsStateWithLifecycle()
@@ -123,7 +133,8 @@ fun SoNovelReaderApp(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val showNavigation =
-        destination?.hasRoute<ReaderRoute>() != true && destination?.hasRoute<GroupShelfRoute>() != true
+        destination?.hasRoute<ReaderRoute>() != true && destination?.hasRoute<GroupShelfRoute>() != true &&
+            destination?.hasRoute<FontSettingsRoute>() != true && destination?.hasRoute<AboutRoute>() != true
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -302,6 +313,9 @@ fun SoNovelReaderApp(
                 SettingsScreen(
                     updateViewModel = updateViewModel,
                     settings = settings,
+                    fontName = fontCatalog.entries.firstOrNull { it.id == settings.fontId }?.displayName ?: "系统默认",
+                    onOpenFonts = { navController.navigate(FontSettingsRoute) },
+                    onOpenAbout = { navController.navigate(AboutRoute) },
                     onModeChange = settingsViewModel::setMode,
                     onFontSizeChange = settingsViewModel::setFontSize,
                     onLineHeightChange = settingsViewModel::setLineHeight,
@@ -320,6 +334,16 @@ fun SoNovelReaderApp(
                     },
                     modifier = Modifier.padding(contentPadding),
                 )
+            }
+
+            composable<FontSettingsRoute> {
+                val fonts: FontSettingsViewModel = viewModel(factory = AppViewModelFactory(container))
+                FontSettingsScreen(fonts, onBack = { navController.popBackStack() }, onMessage = { message ->
+                    appScope.launch { snackbarHostState.showSnackbar(message) }
+                })
+            }
+            composable<AboutRoute> {
+                AboutScreen(onBack = { navController.popBackStack() })
             }
 
             // ========= 阅读器 =========

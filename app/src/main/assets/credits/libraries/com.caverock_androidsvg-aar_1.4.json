@@ -1,0 +1,19 @@
+[
+  {
+    "id": "com.caverock:androidsvg-aar:1.4",
+    "name": "com.caverock:androidsvg-aar",
+    "version": "1.4",
+    "authors": "Paul LeBeau",
+    "copyright": "Copyright 2013 Paul LeBeau, Cave Rock Software Ltd.\nCopyright 2014 Paul LeBeau, Cave Rock Software Ltd.\nCopyright 2018 Paul LeBeau, Cave Rock Software Ltd.",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://github.com/BigBadaboom/androidsvg",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/com.caverock_androidsvg-aar_1.4-00.txt",
+      "credits/texts/com.caverock_androidsvg-aar_1.4-01.txt",
+      "credits/texts/com.caverock_androidsvg-aar_1.4-02.txt",
+      "credits/texts/com.caverock_androidsvg-aar_1.4-03.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/com/caverock/androidsvg-aar/1.4/"
+  }
+]

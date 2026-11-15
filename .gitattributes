@@ -1,0 +1,4 @@
+# Preserve upstream LICENSE/NOTICE bytes, including original line endings and spaces.
+# These assets are intentionally not reformatted as application source code.
+app/src/main/assets/fonts/licenses/** -text -whitespace
+app/src/main/assets/credits/texts/** -text -whitespace

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "androidx.datastore:datastore-preferences-external-protobuf:1.3.0",
+    "name": "AndroidX DataStore Preferences External Protobuf (shaded Protocol Buffers 4.36.1)",
+    "version": "1.3.0",
+    "authors": "The Android Open Source Project; Google LLC / The Android Open Source Project",
+    "copyright": "Copyright 2008 Google Inc.  All rights reserved.",
+    "license": "BSD-3-Clause",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
+    "licenseUrl": "https://raw.githubusercontent.com/protocolbuffers/protobuf/v36.1/LICENSE",
+    "texts": [
+      "credits/texts/androidx.datastore_datastore-preferences-external-protobuf_1.3.0-00.txt",
+      "credits/texts/androidx.datastore_datastore-preferences-external-protobuf_1.3.0-01.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/datastore/datastore-preferences-external-protobuf/1.3.0/"
+  }
+]

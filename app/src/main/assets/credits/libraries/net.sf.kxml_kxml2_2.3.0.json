@@ -1,0 +1,18 @@
+[
+  {
+    "id": "net.sf.kxml:kxml2:2.3.0",
+    "name": "net.sf.kxml:kxml2",
+    "version": "2.3.0",
+    "authors": "Stefan Haustein, Oberhausen, Rhld., Germany",
+    "copyright": "Copyright (c) 2002,2003, Stefan Haustein, Oberhausen, Rhld., Germany\nCopyright (c) 2002,2003,2004 Stefan Haustein, Oberhausen, Rhld., Germany",
+    "license": "BSD style; Public Domain",
+    "projectUrl": "http://kxml.sourceforge.net/",
+    "licenseUrl": "http://kxml.cvs.sourceforge.net/viewvc/kxml/kxml2/license.txt?view=markup",
+    "texts": [
+      "credits/texts/net.sf.kxml_kxml2_2.3.0-00.txt",
+      "credits/texts/net.sf.kxml_kxml2_2.3.0-01.txt",
+      "credits/texts/net.sf.kxml_kxml2_2.3.0-02.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/net/sf/kxml/kxml2/2.3.0/"
+  }
+]

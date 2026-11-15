@@ -18,6 +18,7 @@ data class ReaderSettings(
     val ttsRate: Float = 1f,
     val ttsPitch: Float = 1f,
     val ttsVoiceName: String? = null,
+    val fontId: String = "system",
 )
 
 data class ReaderLocator(

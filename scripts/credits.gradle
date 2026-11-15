@@ -1,0 +1,69 @@
+// Apply from app/build.gradle.kts: apply(from = rootProject.file("scripts/credits.gradle"))
+import groovy.json.JsonOutput
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
+
+tasks.register('exportReleaseCreditsInventory') {
+    group = 'documentation'
+    description = 'Exports actual release runtime artifacts, resolved edges and POM paths for offline credits review.'
+    notCompatibleWithConfigurationCache('Inspects resolved dependency graph at execution time')
+    def destination = layout.buildDirectory.file('reports/credits/release-runtime.json')
+    outputs.file(destination)
+    outputs.upToDateWhen { false }
+    doLast {
+        def configuration = configurations.getByName('releaseRuntimeClasspath')
+        def resolution = configuration.incoming.resolutionResult
+        // Filter before artifact selection: project dependencies expose multiple AGP artifacts.
+        def runtimeArtifacts = configuration.incoming.artifactView {
+            componentFilter { it instanceof ModuleComponentIdentifier }
+        }.artifacts.artifacts
+        def artifacts = runtimeArtifacts.collect { artifact ->
+            def id = artifact.id.componentIdentifier
+            [coordinate: "${id.group}:${id.module}:${id.version}".toString(),
+             file: artifact.file.absolutePath, type: artifact.file.name.tokenize('.').last()]
+        }.sort { it.coordinate }
+        def components = resolution.allComponents.collect { component ->
+            def id = component.id
+            def coordinate = id instanceof ModuleComponentIdentifier ?
+                "${id.group}:${id.module}:${id.version}".toString() : id.displayName
+            [coordinate: coordinate, dependencies: component.dependencies.findAll {
+                it instanceof ResolvedDependencyResult
+            }.collect { it.selected.id.displayName }.sort()]
+        }.sort { it.coordinate }
+        def poms = artifacts.collect { it.coordinate }.unique().collect { coordinate ->
+            def parts = coordinate.split(':')
+            def dependency = dependencies.create("${coordinate}@pom")
+            def detached = configurations.detachedConfiguration(dependency)
+            detached.transitive = false
+            def files = detached.incoming.artifactView { lenient = true }.files.files
+            [coordinate: coordinate, files: files.collect { it.absolutePath }.sort()]
+        }
+        def output = destination.get().asFile
+        output.parentFile.mkdirs()
+        output.text = JsonOutput.prettyPrint(JsonOutput.toJson([
+            configuration: 'releaseRuntimeClasspath', artifacts: artifacts,
+            components: components, poms: poms,
+        ])) + '\n'
+        logger.lifecycle("Credits inventory: ${output}")
+    }
+}
+
+def verifyCredits = tasks.register('verifyReleaseCredits', Exec) {
+    group = 'verification'
+    description = 'Rejects stale or incomplete offline credits before packaging a release.'
+    dependsOn(tasks.named('exportReleaseCreditsInventory'))
+    workingDir(rootProject.projectDir)
+    commandLine('python3', rootProject.file('scripts/verify_credits.py').absolutePath,
+        layout.buildDirectory.file('reports/credits/release-runtime.json').get().asFile.absolutePath)
+}
+
+def verifyFonts = tasks.register('verifyBundledFonts', Exec) {
+    group = 'verification'
+    description = 'Verifies pinned bundled font binaries and original licenses.'
+    workingDir(rootProject.projectDir)
+    commandLine('python3', rootProject.file('scripts/verify_font_resources.py').absolutePath)
+}
+
+tasks.configureEach {
+    if (name == 'preReleaseBuild') dependsOn(verifyCredits, verifyFonts)
+}

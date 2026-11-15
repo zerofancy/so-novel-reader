@@ -1,0 +1,17 @@
+[
+  {
+    "id": "com.google.accompanist:accompanist-drawablepainter:0.37.3",
+    "name": "com.google.accompanist:accompanist-drawablepainter",
+    "version": "0.37.3",
+    "authors": "Google",
+    "copyright": "Copyright 2021 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://github.com/google/accompanist/",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/com.google.accompanist_accompanist-drawablepainter_0.37.3-00.txt",
+      "credits/texts/com.google.accompanist_accompanist-drawablepainter_0.37.3-01.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/com/google/accompanist/accompanist-drawablepainter/0.37.3/"
+  }
+]

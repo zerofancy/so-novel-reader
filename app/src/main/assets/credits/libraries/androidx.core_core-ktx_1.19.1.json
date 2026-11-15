@@ -1,0 +1,17 @@
+[
+  {
+    "id": "androidx.core:core-ktx:1.19.1",
+    "name": "androidx.core:core-ktx",
+    "version": "1.19.1",
+    "authors": "The Android Open Source Project",
+    "copyright": "兼容 / 转发模块，不含独立 class 代码；上游未附独立版权行。",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/core#1.19.1",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.core_core-ktx_1.19.1-00.txt",
+      "credits/texts/androidx.core_core-ktx_1.19.1-01.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/core/core-ktx/1.19.1/"
+  }
+]

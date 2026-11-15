@@ -1,0 +1,43 @@
+[
+  {
+    "id": "embedded:epub4j:jazzlib",
+    "name": "JazzLib / GNU Classpath (embedded in epub4j)",
+    "version": "epub4j 4.2.3 bundled source snapshot",
+    "authors": "Free Software Foundation; John Leuner; Tom Tromey",
+    "copyright": "Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.\nCopyright (C) 1999. 2000, 2001 Free Software Foundation, Inc.\nCopyright (C) 1999, 2000 Free Software Foundation, Inc.\nCopyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.\nCopyright (C) 1999, 2000, 2001, 2004 Free Software Foundation, Inc.\nCopyright (C) 2001 Free Software Foundation, Inc.\nCopyright (C) 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.\nCopyright (C) 1999, 2000, 2001, 2003  Free Software Foundation, Inc.\nCopyright (C) 1999, 2000, 2001, 2002, 2003, 2004\nCopyright (C) 2001, 2002 Free Software Foundation, Inc.\nCopyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.\nCopyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.\nCopyright (C) 1989, 1991 Free Software Foundation, Inc.,",
+    "license": "GPL-2.0-or-later WITH Classpath-exception-2.0",
+    "projectUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "licenseUrl": "https://www.gnu.org/software/classpath/license.html",
+    "sourceUrl": "https://repo.maven.apache.org/maven2/io/documentnode/epub4j-core/4.2.3/epub4j-core-4.2.3-sources.jar",
+    "texts": [
+      "credits/texts/embedded_jazzlib-00.txt",
+      "credits/texts/embedded_jazzlib-01.txt",
+      "credits/texts/embedded_jazzlib-02.txt",
+      "credits/texts/embedded_jazzlib-03.txt",
+      "credits/texts/embedded_jazzlib-04.txt",
+      "credits/texts/embedded_jazzlib-05.txt",
+      "credits/texts/embedded_jazzlib-06.txt",
+      "credits/texts/embedded_jazzlib-07.txt",
+      "credits/texts/embedded_jazzlib-08.txt",
+      "credits/texts/embedded_jazzlib-09.txt",
+      "credits/texts/embedded_jazzlib-10.txt",
+      "credits/texts/embedded_jazzlib-11.txt",
+      "credits/texts/embedded_jazzlib-12.txt",
+      "credits/texts/embedded_jazzlib-13.txt",
+      "credits/texts/embedded_jazzlib-14.txt",
+      "credits/texts/embedded_jazzlib-15.txt",
+      "credits/texts/embedded_jazzlib-16.txt",
+      "credits/texts/embedded_jazzlib-17.txt",
+      "credits/texts/embedded_jazzlib-18.txt",
+      "credits/texts/embedded_jazzlib-19.txt",
+      "credits/texts/embedded_jazzlib-20.txt",
+      "credits/texts/embedded_jazzlib-21.txt",
+      "credits/texts/embedded_jazzlib-22.txt",
+      "credits/texts/embedded_jazzlib-23.txt",
+      "credits/texts/embedded_jazzlib-24.txt",
+      "credits/texts/embedded_jazzlib-25.txt",
+      "credits/texts/embedded_jazzlib-26.txt",
+      "credits/texts/embedded_jazzlib-27.txt"
+    ]
+  }
+]

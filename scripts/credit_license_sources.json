@@ -1,0 +1,17 @@
+[
+  {"prefix":"io.github.zerofancy:kmp-updater-android:","url":"https://raw.githubusercontent.com/zerofancy/kmp-updater/e70e60affae97158115cc822bbacd07f95eb5420/LICENSE","license":"MIT","authors":"zerofancy"},
+  {"prefix":"androidx.datastore:datastore-preferences-external-protobuf:1.3.0","url":"https://raw.githubusercontent.com/protocolbuffers/protobuf/v36.1/LICENSE","license":"BSD-3-Clause","authors":"Google LLC / The Android Open Source Project","displayName":"AndroidX DataStore Preferences External Protobuf (shaded Protocol Buffers 4.36.1)"},
+  {"prefix":"io.documentnode:epub4j-core:4.2.3","url":"https://raw.githubusercontent.com/apache/commons-io/commons-io-2.0.1/LICENSE.txt","license":"Apache-2.0 (bundled Commons IO source revisions)","noticeUrl":"https://raw.githubusercontent.com/apache/commons-io/commons-io-2.0.1/NOTICE.txt"},
+  {"prefix":"io.documentnode:minilog:1.0","url":"https://raw.githubusercontent.com/documentnode/minilog/1.0/LICENSE","license":"Apache-2.0","copyrightStatement":"上游 1.0 的 LICENSE 与源文件未附独立版权行；作者 Jake Wang / Document Node，未推测版权年份。"},
+  {"prefix":"io.ktor:","url":"https://raw.githubusercontent.com/ktorio/ktor/{version}/LICENSE","license":"Apache-2.0"},
+  {"prefix":"org.jetbrains.kotlinx:kotlinx-coroutines-","url":"https://raw.githubusercontent.com/Kotlin/kotlinx.coroutines/{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"org.jetbrains.kotlinx:kotlinx-serialization-","url":"https://raw.githubusercontent.com/Kotlin/kotlinx.serialization/v{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"org.jetbrains.kotlinx:kotlinx-io-","url":"https://raw.githubusercontent.com/Kotlin/kotlinx-io/{version}/LICENSE","license":"Apache-2.0"},
+  {"prefix":"org.jetbrains.kotlin:kotlin-stdlib:","url":"https://raw.githubusercontent.com/JetBrains/kotlin/v{version}/license/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"org.jetbrains:annotations:","url":"https://raw.githubusercontent.com/JetBrains/java-annotations/{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"com.squareup.okhttp3:","url":"https://raw.githubusercontent.com/square/okhttp/parent-{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"com.squareup.okio:","url":"https://raw.githubusercontent.com/square/okio/parent-{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"io.coil-kt.coil3:","url":"https://raw.githubusercontent.com/coil-kt/coil/{version}/LICENSE.txt","license":"Apache-2.0"},
+  {"prefix":"com.jakewharton.timber:","url":"https://raw.githubusercontent.com/JakeWharton/timber/{version}/LICENSE.txt","license":"Apache-2.0","noticeUrl":"https://raw.githubusercontent.com/JakeWharton/timber/{version}/README.md"},
+  {"prefix":"net.lingala.zip4j:","url":"https://raw.githubusercontent.com/srikanth-lingala/zip4j/v{version}/LICENSE","license":"Apache-2.0"}
+]

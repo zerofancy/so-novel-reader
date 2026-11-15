@@ -1,0 +1,24 @@
+[
+  {
+    "id": "androidx.collection:collection-jvm:1.6.0",
+    "name": "androidx.collection:collection-jvm",
+    "version": "1.6.0",
+    "authors": "The Android Open Source Project",
+    "copyright": "Copyright (C) 2017 The Android Open Source Project\nCopyright (C) 2019 The Android Open Source Project\nCopyright 2018 The Android Open Source Project\nCopyright 2020 The Android Open Source Project\nCopyright 2022 The Android Open Source Project\nCopyright 2023 The Android Open Source Project\nCopyright 2024 The Android Open Source Project",
+    "license": "The Apache Software License, Version 2.0",
+    "projectUrl": "https://developer.android.com/jetpack/androidx/releases/collection#1.6.0",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-00.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-01.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-02.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-03.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-04.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-05.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-06.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-07.txt",
+      "credits/texts/androidx.collection_collection-jvm_1.6.0-08.txt"
+    ],
+    "sourceUrl": "https://dl.google.com/dl/android/maven2/androidx/collection/collection-jvm/1.6.0/"
+  }
+]

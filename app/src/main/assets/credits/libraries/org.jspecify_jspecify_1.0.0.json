@@ -1,0 +1,18 @@
+[
+  {
+    "id": "org.jspecify:jspecify:1.0.0",
+    "name": "org.jspecify:jspecify",
+    "version": "1.0.0",
+    "authors": "Kevin Bourrillion",
+    "copyright": "Copyright 2018-2020 The JSpecify Authors.\nCopyright 2022 The JSpecify Authors.",
+    "license": "The Apache License, Version 2.0",
+    "projectUrl": "http://jspecify.org/",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0.txt",
+    "texts": [
+      "credits/texts/org.jspecify_jspecify_1.0.0-00.txt",
+      "credits/texts/org.jspecify_jspecify_1.0.0-01.txt",
+      "credits/texts/org.jspecify_jspecify_1.0.0-02.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jspecify/jspecify/1.0.0/"
+  }
+]

@@ -88,6 +88,7 @@ class BookmarkUiTest {
             rule.runOnIdle { store.clear() }
             kotlinx.coroutines.runBlocking { container.bookRepository.deleteBook(id) }
             epub.delete()
+            container.close()
         }
     }
 

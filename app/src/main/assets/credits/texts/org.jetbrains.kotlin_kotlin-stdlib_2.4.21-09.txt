@@ -1,0 +1,5 @@
+--- kotlin-stdlib-2.4.21-sources.jar!/commonMain/kotlin/collections/AbstractMap.kt (original source declaration) ---
+/*
+ * Based on GWT AbstractMap
+ * Copyright 2007 Google Inc.
+ */

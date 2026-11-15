@@ -1,0 +1,4 @@
+--- ktor-network-jvm-3.6.1-sources.jar!/commonMain/io/ktor/network/selector/Selectable.kt (original source declaration) ---
+/*
+ * Copyright 2014-2024 JetBrains s.r.o and contributors. Use of this source code is governed by the Apache 2.0 license.
+ */

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "org.jetbrains.kotlinx:kotlinx-io-core-jvm:0.9.1",
+    "name": "org.jetbrains.kotlinx:kotlinx-io-core-jvm",
+    "version": "0.9.1",
+    "authors": "JetBrains Team",
+    "copyright": "Copyright (C) 2014 Square, Inc.\nCopyright (C) 2017 Square, Inc.\nCopyright (C) 2018 Square, Inc.\nCopyright (C) 2019 Square, Inc.\nCopyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.\nCopyright 2010-2024 JetBrains s.r.o. and respective authors and developers.\nCopyright 2017-2023 JetBrains s.r.o. and respective authors and developers.\nCopyright 2017-2024 JetBrains s.r.o. and respective authors and developers.",
+    "license": "Apache-2.0",
+    "projectUrl": "https://github.com/Kotlin/kotlinx-io",
+    "licenseUrl": "https://raw.githubusercontent.com/Kotlin/kotlinx-io/0.9.1/LICENSE",
+    "texts": [
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-00.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-01.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-02.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-03.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-04.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-05.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-06.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-07.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-08.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-09.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-10.txt",
+      "credits/texts/org.jetbrains.kotlinx_kotlinx-io-core-jvm_0.9.1-11.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-io-core-jvm/0.9.1/"
+  }
+]

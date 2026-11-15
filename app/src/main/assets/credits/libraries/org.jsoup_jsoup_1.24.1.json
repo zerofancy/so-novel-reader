@@ -1,0 +1,16 @@
+[
+  {
+    "id": "org.jsoup:jsoup:1.24.1",
+    "name": "org.jsoup:jsoup",
+    "version": "1.24.1",
+    "authors": "Jonathan Hedley",
+    "copyright": "Copyright (c) 2009-2026 Jonathan Hedley <https://jsoup.org/>",
+    "license": "The MIT License",
+    "projectUrl": "https://jsoup.org/",
+    "licenseUrl": "https://jsoup.org/license",
+    "texts": [
+      "credits/texts/org.jsoup_jsoup_1.24.1-00.txt"
+    ],
+    "sourceUrl": "https://repo1.maven.org/maven2/org/jsoup/jsoup/1.24.1/"
+  }
+]

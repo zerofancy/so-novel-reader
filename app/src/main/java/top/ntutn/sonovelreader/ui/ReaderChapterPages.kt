@@ -53,10 +53,7 @@ internal fun rememberChapterPages(
     noIndentStyle: TextStyle,
     textMeasurer: TextMeasurer,
 ): List<ReaderPage> {
-    val chapterTitleStyle = indentStyle.copy(
-        fontSize = (settings.fontSizeSp * 1.3f).sp,
-        fontWeight = FontWeight.Bold,
-    )
+    val chapterTitleStyle = readerChapterTitleStyle(settings, indentStyle.color)
     val titleReservedPx = remember(chapterTitle, widthPx, chapterTitleStyle, spacingPx) {
         val layout = textMeasurer.measure(
             text = AnnotatedString(chapterTitle),

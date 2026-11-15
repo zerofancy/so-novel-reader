@@ -17,6 +17,7 @@ private val Context.readerDataStore by preferencesDataStore(name = "reader_setti
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val mode = stringPreferencesKey("reading_mode")
+        val fontId = stringPreferencesKey("reader_font_id")
         val fontSize = intPreferencesKey("font_size_sp")
         val lineHeight = floatPreferencesKey("line_height")
         val firstLineIndent = booleanPreferencesKey("first_line_indent")
@@ -39,6 +40,7 @@ class SettingsRepository(private val context: Context) {
     val aiSettings: Flow<AiSettings> = context.readerDataStore.data.map(::decodeAi)
 
     suspend fun setReadingMode(value: ReadingMode) = update(Keys.mode, value.name)
+    suspend fun setFontId(value: String) = update(Keys.fontId, value)
     suspend fun setFontSize(value: Int) = update(Keys.fontSize, value.coerceIn(14, 32))
     suspend fun setLineHeight(value: Float) = update(Keys.lineHeight, value.coerceIn(1.2f, 2.2f))
     suspend fun setFirstLineIndent(value: Boolean) = update(Keys.firstLineIndent, value)
@@ -80,6 +82,7 @@ class SettingsRepository(private val context: Context) {
 
     private fun decode(preferences: Preferences): ReaderSettings = ReaderSettings(
         readingMode = preferences[Keys.mode].toEnumOrDefault(ReadingMode.SCROLL),
+        fontId = preferences[Keys.fontId] ?: "system",
         fontSizeSp = (preferences[Keys.fontSize] ?: 20).coerceIn(14, 32),
         lineHeight = (preferences[Keys.lineHeight] ?: 1.5f).coerceIn(1.2f, 2.2f),
         firstLineIndent = preferences[Keys.firstLineIndent] ?: true,

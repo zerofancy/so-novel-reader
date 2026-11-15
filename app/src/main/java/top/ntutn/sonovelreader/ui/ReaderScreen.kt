@@ -170,15 +170,21 @@ fun ReaderScreen(
             !showToc && bookmarkSnapshot == null && !state.loading && !state.contentLoading &&
             state.error == null && state.parsedBook != null && state.locator != null && state.content != null,
         viewModel = viewModel, renderedState = state)
-    CompositionLocalProvider(LocalReaderPageTurner provides pageTurner) {
+    CompositionLocalProvider(LocalReaderPageTurner provides pageTurner,
+        LocalReaderFont provides (state.font?.family ?: androidx.compose.ui.text.font.FontFamily.Default)) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         when {
-            state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
+            state.loading || state.font == null -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = palette.foreground)
             state.error != null -> ReaderError(state.error.orEmpty(), viewModel::load, onBack, palette)
             state.parsedBook != null && state.locator != null && state.content != null -> {
                 val book = state.parsedBook!!
                 val locator = state.locator!!
+                val renderedJumpToken = state.bookmarkJumpToken
+                val renderedGeneration = state.layoutGeneration
                 val content = state.content!!
+                val restoreFraction = activeSentence?.takeIf {
+                    !followSuspended && it.locator.chapterIndex == locator.chapterIndex
+                }?.let { content.progressAt(it) } ?: locator.chapterFraction
                 val chapter = book.chapters[locator.chapterIndex.coerceIn(book.chapters.indices)]
                 val onPreviousChapter = {
                     followSuspended = true
@@ -221,6 +227,7 @@ fun ReaderScreen(
                 val displayChapterIndex = (locator.chapterIndex + (displayInfo.value?.chapterOffset ?: 0))
                     .coerceIn(book.chapters.indices)
                 val displayTitle = book.chapters[displayChapterIndex].title.ifBlank { "第 ${displayChapterIndex + 1} 章" }
+                androidx.compose.runtime.key(state.font?.cacheKey) {
                 ReaderInfoLayout(
                     visible = !controlsTransition.currentState && !controlsTransition.targetState,
                     chapterTitle = displayTitle,
@@ -240,14 +247,14 @@ fun ReaderScreen(
                             settings = state.settings,
                             palette = palette,
                             chapterTitle = chapter.title,
-                            initialFraction = locator.chapterFraction,
+                            initialFraction = restoreFraction,
                             fragment = pendingFragment,
                             jumpToken = jumpToken + state.bookmarkJumpToken,
                             hasPreviousChapter = locator.chapterIndex > 0,
                             hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                             onToggleControls = { controlsVisible = !controlsVisible },
                             onProgress = { fraction ->
-                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, renderedJumpToken, renderedGeneration)
                             },
                             onFragmentConsumed = { pendingFragment = null },
                             onPreviousChapter = onPreviousChapter,
@@ -266,14 +273,14 @@ fun ReaderScreen(
                             settings = state.settings,
                             palette = palette,
                             chapterTitle = chapter.title,
-                            initialFraction = locator.chapterFraction,
+                            initialFraction = restoreFraction,
                             fragment = pendingFragment,
                             jumpToken = jumpToken + state.bookmarkJumpToken,
                             hasPreviousChapter = locator.chapterIndex > 0,
                             hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                             onToggleControls = { controlsVisible = !controlsVisible },
                             onProgress = { fraction ->
-                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, renderedJumpToken, renderedGeneration)
                             },
                             onFragmentConsumed = { pendingFragment = null },
                             onPreviousChapter = onPreviousChapter,
@@ -292,14 +299,14 @@ fun ReaderScreen(
                             settings = state.settings,
                             palette = palette,
                             chapterTitle = chapter.title,
-                            initialFraction = locator.chapterFraction,
+                            initialFraction = restoreFraction,
                             fragment = pendingFragment,
                             jumpToken = jumpToken + state.bookmarkJumpToken,
                             hasPreviousChapter = locator.chapterIndex > 0,
                             hasNextChapter = locator.chapterIndex < book.chapters.lastIndex,
                             onToggleControls = { controlsVisible = !controlsVisible },
                             onProgress = { fraction ->
-                                viewModel.updateReaderFraction(fraction, locator.chapterHref, state.bookmarkJumpToken)
+                                viewModel.updateReaderFraction(fraction, locator.chapterHref, renderedJumpToken, renderedGeneration)
                             },
                             onFragmentConsumed = { pendingFragment = null },
                             onPreviousChapter = onPreviousChapter,
@@ -310,6 +317,7 @@ fun ReaderScreen(
                     }
                 }
 
+                }
                 controlsTransition.AnimatedVisibility(visible = { it }, modifier = Modifier.align(Alignment.TopCenter)) {
                     Surface(color = palette.background, tonalElevation = 3.dp, shadowElevation = 3.dp) {
                         TopAppBar(
