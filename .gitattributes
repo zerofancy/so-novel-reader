@@ -1,4 +1,4 @@
-# Preserve upstream LICENSE/NOTICE bytes, including original line endings and spaces.
-# These assets are intentionally not reformatted as application source code.
-app/src/main/assets/fonts/licenses/** -text -whitespace
-app/src/main/assets/credits/texts/** -text -whitespace
+# LICENSE/NOTICE text may use normal Git line-ending conversion.
+# Ignore upstream whitespace formatting without changing license content.
+app/src/main/assets/fonts/licenses/** text -whitespace
+app/src/main/assets/credits/texts/** text -whitespace

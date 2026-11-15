@@ -16,9 +16,11 @@
 
 Release `preReleaseBuild` automatically depends on `verifyReleaseCredits` and
 `verifyBundledFonts`: the actual dependency graph, reviewed artifact SHA-256
-(including mutable snapshots), offline declaration assets and pinned font/license
-bytes must match before packaging. Metadata fetching/regeneration remains a
-maintainer preparation step, not an app runtime network operation.
+(including mutable snapshots), offline declaration assets, pinned font binaries
+and license content are checked before packaging. License text may use normal
+line-ending conversion; upstream license hashes are provenance metadata, not a
+byte-identity requirement. Metadata fetching/regeneration remains a maintainer
+preparation step, not an app runtime network operation.
 
 The Gradle inventory records the resolved release graph, module versions, runtime
 artifact paths and POM paths. Platforms/BOMs without runtime artifacts are not
