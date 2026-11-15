@@ -155,7 +155,7 @@ internal fun Path.moveTo(p: Point?) = p?.let { this.moveTo(p.x, p.y) }
 internal fun Path.lineTo(p: Point?) = p?.let { this.lineTo(p.x, p.y) }
 internal fun Path.quadraticBezierTo(controlPoint: Point?, endPoint: Point?) {
     if (controlPoint != null && endPoint != null) {
-        this.quadraticBezierTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y)
+        this.quadraticTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y)
     }
 }
 

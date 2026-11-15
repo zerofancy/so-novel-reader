@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.nativePaint
 import ptq.mpga.ptqbookpageview.widget.Line.Companion.theta
 import kotlin.math.absoluteValue
 
@@ -125,7 +126,7 @@ internal fun CurlEngine.Draw(animFloatRatio: Float, pageCallbacks: PTQBookPageVi
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawIntoCanvas {
                     val paint = Paint()
-                    val frameworkPaint = paint.asFrameworkPaint()
+                    val frameworkPaint = paint.nativePaint
                     paint.isAntiAlias = true
                     frameworkPaint.isAntiAlias = true
                     val nativeCanvas = it.nativeCanvas
