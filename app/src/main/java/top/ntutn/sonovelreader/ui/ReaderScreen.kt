@@ -30,7 +30,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.BottomAppBar
@@ -404,7 +404,7 @@ fun ReaderScreen(
                             }
                         }
                         IconButton(onClick = onOpenSettings) {
-                            Icon(Icons.Default.RecordVoiceOver, contentDescription = "朗读设置")
+                            Icon(Icons.Default.Settings, contentDescription = "阅读设置")
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(

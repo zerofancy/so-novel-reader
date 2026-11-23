@@ -58,7 +58,9 @@ val updateTestVersion = if (updateTestPackage) {
 android {
     namespace = "top.ntutn.sonovelreader"
     compileSdk {
-        version = release(37)
+        version = release(37) {
+            minorApiLevel = 1
+        }
     }
 
     defaultConfig {
